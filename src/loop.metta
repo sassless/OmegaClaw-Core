@@ -20,7 +20,7 @@
                              ($_ (change-state! &prevmsg $msg))
                              ($send (py-str ($prompt $lastmessage)))
                              ($_ (println! (CHARS_SENT: (string_length $send) $send)))
-                             ($response (useGPT $send))
+                             ($response (useGPT gpt-5.2 3000 medium $send))
                              ($sexpr (catch (sread $response)))
                              ($_ (println! (RESPONSE: $sexpr)))
                              ($results (RESULTS: (collapse (for $s $sexpr (COMMAND_RETURN: ($s (eval $s)))))))
