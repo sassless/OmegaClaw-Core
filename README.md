@@ -5,13 +5,25 @@
 An agentic AI system implemented in MeTTa, guided by the MeTTaClaw proposal and an agent core inspired by Nanobot.
 Beyond basic tool use, it features embedding-based long-term memory represented entirely in MeTTa AtomSpace format.
 
-Long-term memory is maintained by the agent via `remember(string)` for adding memory items and `query(string)` for querying related memories.
+Long-term memory is deliberately maintained by the agent via `(remember string)` for adding memory items and `(query string)` for querying related memories.
 The agent can learn and apply new skills and declarative knowledge through the use of memory items.
 
 In addition, an initial set of OpenClaw-like tools is implemented, including web search, file modification, communication channels, and access to the operating system shell and its associated tools.
 
 Simplicity of design, ease of prototyping, ease of extension, and transparent implementation in MeTTa were the primary design criteria.
 The agent core comprises approximately 200 lines of code.
+
+**Design Features**
+
+- MeTTaClaw uses a token-efficient agentic loop, enabling low-cost long-term operation and embodiment in domains that require real-time learning and decision-making.
+
+- The agent can learn to represent its memories in different formats, including formats that allow other Hyperon components to operate on the same memories within the same Atomspace. However, the agent is not hardcoded to any particular memory format, and different memory representations can co-exist.
+
+The following example demonstrates learning and decision-making in a textually represented grid-world environment adapted from [NACE](https://github.com/patham9/NACE):
+
+![mettaclaw_in_nace_world](https://github.com/user-attachments/assets/2fadead8-af73-46fc-bec4-4b0974221311)
+
+Allso: ROS2 package for operating mobile robots is underway.
 
 **Installation**
 
