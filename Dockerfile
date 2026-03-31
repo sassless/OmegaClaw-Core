@@ -81,6 +81,7 @@ RUN mkdir -p repos
 ADD . repos/mettaclaw
 RUN python3 -m pip install --no-cache-dir --break-system-packages openai
 RUN cp repos/mettaclaw/run.metta ./
+RUN cp repos/mettaclaw/config.py ./
 
 
 # 👇 Pytorch install
@@ -103,4 +104,6 @@ RUN chown 65534:65534 repos/mettaclaw/memory/history.metta \
 ENTRYPOINT ["/firewall.sh"]
 
 # Start Mettaclaw.
-CMD ["sh", "run.sh", "run.metta", "default"]
+#CMD ["sh", "run.sh", "run.metta"]
+
+CMD ["python3", "config.py"]
