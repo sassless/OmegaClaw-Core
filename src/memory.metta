@@ -33,7 +33,7 @@
 
 (= (embed $x)
    (if (== (embeddingprovider) Local)
-       (py-call (llm.useLocalEmbedding (string-safe $str)))
+       (py-call (lib_llm_ext.useLocalEmbedding (string-safe $str)))
        (useGPTEmbedding (string-safe $str))))
 
 (= (appendToHistory $addition)
