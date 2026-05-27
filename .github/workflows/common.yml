@@ -66,7 +66,7 @@ jobs:
           platforms: ${{ inputs.platforms }}
           load: ${{ inputs.run_tests }}
           push: false
-          tags: singularitynet/omegaclaw:${{ inputs.tag_name }}
+          tags: sassless/omegaclaw-test:${{ inputs.tag_name }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           no-cache: ${{ inputs.no_build_cache }}
@@ -82,8 +82,8 @@ jobs:
           platforms: ${{ inputs.platforms }}
           push: ${{ inputs.publish_docker }}
           tags: |
-            singularitynet/omegaclaw:${{ inputs.tag_name }}
-            ${{ inputs.move_latest && 'singularitynet/omegaclaw:latest' || '' }}
+            sassless/omegaclaw-test:${{ inputs.tag_name }}
+            ${{ inputs.move_latest && 'sassless/omegaclaw-test:latest' || '' }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           no-cache: ${{ inputs.no_build_cache }}
