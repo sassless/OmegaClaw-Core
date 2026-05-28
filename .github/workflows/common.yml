@@ -80,6 +80,10 @@ jobs:
       - name: Autotests - Set up
         if: inputs.run_tests
         run: |
+          echo "REF=$GITHUB_REF"
+          echo "SHA=$GITHUB_SHA"
+          docker image ls
+          git status
           chmod +x ./scripts/omegaclaw
           ./scripts/omegaclaw start -p Test -t test -d singularitynet/omegaclaw:${{ inputs.tag_name }}
           pip install pytest
