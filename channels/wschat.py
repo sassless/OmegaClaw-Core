@@ -103,7 +103,7 @@ def _connect_client(ws_url, ws_token):
     try:
         return connect(ws_url, additional_headers=headers, **kwargs)
     except TypeError:
-        return connect(ws_url, extra_headers=headers, **kwargs)
+        return connect(ws_url, extra_headers=headers, **kwargs)  # for websockets<=4.14
 
 
 def _resolve_connection_inputs(ws_url=None, ws_token=None):
