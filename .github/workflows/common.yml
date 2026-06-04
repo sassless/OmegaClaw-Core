@@ -82,7 +82,7 @@ jobs:
         if: inputs.run_tests
         run: |
           chmod +x ./scripts/omegaclaw
-          ./scripts/omegaclaw start -p Test -t test -d singularitynet/omegaclaw:${{ env.AUTOTESTS_OMEGACLAW_TAG }}
+          ./scripts/omegaclaw start -p Test -t test -d sassless/omegaclaw-test:${{ env.AUTOTESTS_OMEGACLAW_TAG }}
           pip install pytest
         env:
           TEST_SERVER_IP: 'host.docker.internal'
