@@ -69,7 +69,7 @@ jobs:
           platforms: linux/amd64
           load: ${{ inputs.run_tests }}
           push: false
-          tags: sassless/omegaclaw-test:${{ inputs.tag_name }}
+          tags: sassless/omegaclaw-test:${{ env.AUTOTESTS_OMEGACLAW_TAG }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
           no-cache: ${{ inputs.no_build_cache }}
