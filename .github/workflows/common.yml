@@ -71,7 +71,7 @@ jobs:
           push: false
           tags: sassless/omegaclaw-test:${{ env.AUTOTESTS_OMEGACLAW_TAG }}
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           no-cache: ${{ inputs.no_build_cache }}
 
       - name: Autotests - Checkout
@@ -129,6 +129,7 @@ jobs:
           tags: |
             sassless/omegaclaw-test:${{ inputs.tag_name }}
             ${{ inputs.move_latest && 'sassless/omegaclaw-test:latest' || '' }}
+          provenance: false
           cache-from: type=gha
-          cache-to: type=gha,mode=max
+          cache-to: type=gha,mode=min
           no-cache: ${{ inputs.no_build_cache }}
