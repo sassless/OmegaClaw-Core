@@ -26,6 +26,10 @@ RUN apt-get update \
       gfortran \
       libgflags-dev \
       nano \
+      ncdu \
+      strace \
+      lsof \
+      tmux \
  && rm -rf /var/lib/apt/lists/*
 
 # Build dependencies from source. Pin refs at build time for reproducibility.
@@ -61,7 +65,10 @@ RUN python3 -m pip install --no-cache-dir --break-system-packages \
     openai==2.38.0 \
     uagents==0.25.1 \
     transformers==5.8.0 \
-    sentence-transformers==5.5.1
+    sentence-transformers==5.5.1 \
+    boltons \
+    humanize \
+    tabulate
 
 # Pre-download the sentence-transformers model so runtime does not need network access.
 RUN mkdir -p "${HF_HOME}" "${SENTENCE_TRANSFORMERS_HOME}" \
@@ -95,6 +102,8 @@ RUN apt-get update \
       git \
       ncdu \
       strace \
+      lsof \
+      tmux \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /PeTTa
