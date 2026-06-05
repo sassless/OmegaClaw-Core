@@ -93,6 +93,8 @@ RUN apt-get update \
       libgflags-dev \
       nano \
       git \
+      ncdu \
+      strace \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /PeTTa
