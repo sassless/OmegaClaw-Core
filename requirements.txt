@@ -1,6 +1,7 @@
 sentence-transformers
 chromadb
-janus-swi
+#janus-swi
 openai
 uagents
 websockets
+mcp
