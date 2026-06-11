@@ -2,11 +2,12 @@ import asyncio
 import json
 import os
 import time
+from pathlib import Path
 
 from mcp import ClientSession
 from mcp.client.sse import sse_client
 
-CONFIG_PATH = os.path.expanduser("~/.config/omegaclaw/mcp.json")
+CONFIG_PATH = Path(__file__).parents[1].joinpath("mcp.json")
 
 SERVERS_CONFIG_MAP = {}
 TOOL_ROUTING_MAP = {}  # tool name -> server name
@@ -65,6 +66,8 @@ async def _discover_and_map_server(server_name: str, cfg: dict):
     return []
 
 
+# we probably should use persistent session implementation to reuse session for multiple tool calls
+# and not to reconnect every time we call mcp server
 async def _execute_tool_on_server(cfg: dict, tool_name: str, arguments: dict):
     headers = cfg.get("headers", {})
     async with sse_client(url=cfg["url"], headers=headers) as (r, w):
@@ -136,8 +139,8 @@ def call_tool(name: str, parameters_input: str | dict) -> str:
         args = dict(parameters_input)
 
     try:
-        content_objects = _run_async(_execute_tool_on_server(target_config, name, args))
-        text_responses = [c.text for c in content_objects if hasattr(c, "text")]
+        tool_result = _run_async(_execute_tool_on_server(target_config, name, args))
+        text_responses = [c.text for c in tool_result.content if hasattr(c, "text")]
         return "\n".join(text_responses)
     except Exception as e:
         if "not found" in str(e).lower() or "404" in str(e):
