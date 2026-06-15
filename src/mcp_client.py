@@ -8,6 +8,7 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 
 CONFIG_PATH = Path(__file__).parents[1].joinpath("mcp.json")
+MCP_JSON_CONTENT = os.environ.get("MCP_JSON_CONTENT")
 
 SERVERS_CONFIG_MAP = {}
 TOOL_ROUTING_MAP = {}  # tool name -> server name
@@ -27,14 +28,22 @@ def _run_async(coro):
 
 
 def _load_mcp_config_to_memory():
-    global SERVERS_CONFIG_MAP
+    global SERVERS_CONFIG_MAP, MCP_JSON_CONTENT
+
+    if MCP_JSON_CONTENT and MCP_JSON_CONTENT.strip():
+        try:
+            config = json.loads(MCP_JSON_CONTENT)
+            SERVERS_CONFIG_MAP = config.get("mcpServers", {})
+            return
+        except json.JSONDecodeError as e:
+            print(f"Failed to parse inner MCP_JSON_CONTENT string atom: {e}")
+
     if not os.path.exists(CONFIG_PATH):
         SERVERS_CONFIG_MAP = {}
         return
 
     with open(CONFIG_PATH, "r") as f:
         config = json.load(f)
-
     SERVERS_CONFIG_MAP = config.get("mcpServers", {})
 
 
