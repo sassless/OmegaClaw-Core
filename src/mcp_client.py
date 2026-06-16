@@ -2,6 +2,7 @@ import asyncio
 import json
 import os
 import time
+import traceback
 from pathlib import Path
 
 from mcp import ClientSession
@@ -71,7 +72,8 @@ async def _discover_and_map_server(server_name: str, cfg: dict):
                 return tools_found
 
     except Exception as e:
-        print(f"Failed to scan tools from server '{server_name}': {e}")
+        print(f"Failed to scan tools from server '{server_name}'")
+        traceback.print_exc()
     return []
 
 
@@ -106,7 +108,11 @@ def _update_server_tools_if_needed(force_update: bool = False):
     all_tasks = [
         _discover_and_map_server(name, cfg) for name, cfg in SERVERS_CONFIG_MAP.items()
     ]
-    resolved_lists = _run_async(asyncio.gather(*all_tasks))
+
+    async def _gather_tasks():
+        return await asyncio.gather(*all_tasks)
+
+    resolved_lists = _run_async(_gather_tasks())
 
     formatted_skills = []
     for tool_list in resolved_lists:
@@ -126,7 +132,7 @@ def get_tools_as_string() -> str:
     return LAST_FORMATTED_STRING
 
 
-def call_tool(name: str, parameters_input: str | dict) -> str:
+def call_tool(name: str, parameters_input: str | dict | None = None) -> str:
     global TOOL_ROUTING_MAP, SERVERS_CONFIG_MAP
 
     _update_server_tools_if_needed(name not in TOOL_ROUTING_MAP)
@@ -139,7 +145,9 @@ def call_tool(name: str, parameters_input: str | dict) -> str:
     if not target_config:
         return f"Error: Configuration for server '{server_name}' missing."
 
-    if isinstance(parameters_input, str):
+    if parameters_input is None:
+        args = {}
+    elif isinstance(parameters_input, str):
         try:
             args = json.loads(parameters_input)
         except json.JSONDecodeError:
