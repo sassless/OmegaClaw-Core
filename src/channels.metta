@@ -53,7 +53,7 @@
                    (py-call (slack.getLastMessage))
                    (if (== (commchannel) mattermost)
                        (py-call (mattermost.getLastMessage))
-                       (py-call (mock.getLastMessage)))))))
+                       (py-call (mock.getLastMessage))))))))
 
 ;Send a message to all communication channels:
 !(change-state! &lastsend "")
@@ -71,7 +71,7 @@
                                    (let $temp (cut) (py-call (slack.send_message $safemsg)))
                                    (if (== (commchannel) mattermost)
                                        (let $temp (cut) (py-call (mattermost.send_message $safemsg)))
-                                       (let $temp (cut) (py-call (mock.send_message $safemsg))))))))) _))
+                                       (let $temp (cut) (py-call (mock.send_message $safemsg)))))))))) _))
 
 ;Search the internet for some information:
 (= (search $msg)
