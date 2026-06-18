@@ -13,7 +13,7 @@ MCP_JSON_CONTENT = os.environ.get("MCP_JSON_CONTENT")
 
 SERVERS_CONFIG_MAP = {}
 TOOL_ROUTING_MAP = {}  # tool name -> server name
-LAST_FORMATTED_STRING = ""
+LAST_TOOL_LIST = []
 LAST_REFRESH_TIME = 0
 CACHE_TTL_SECONDS = 300
 
@@ -90,7 +90,7 @@ async def _execute_tool_on_server(cfg: dict, tool_name: str, arguments: dict):
 def _update_server_tools_if_needed(force_update: bool = False):
     global \
         TOOL_ROUTING_MAP, \
-        LAST_FORMATTED_STRING, \
+        LAST_TOOL_LIST, \
         LAST_REFRESH_TIME, \
         SERVERS_CONFIG_MAP
 
@@ -100,7 +100,7 @@ def _update_server_tools_if_needed(force_update: bool = False):
     current_time = time.time()
     cache_is_expired = (current_time - LAST_REFRESH_TIME) > CACHE_TTL_SECONDS
 
-    if LAST_FORMATTED_STRING and not cache_is_expired and not force_update:
+    if LAST_TOOL_LIST and not cache_is_expired and not force_update:
         return
 
     TOOL_ROUTING_MAP.clear()
@@ -119,17 +119,14 @@ def _update_server_tools_if_needed(force_update: bool = False):
         for name, desc, param_keys in tool_list:
             formatted_skills.append(f'"- {desc}: call-mcp {name} {param_keys}"')
 
-    if not formatted_skills:
-        LAST_FORMATTED_STRING = "()"
-    else:
-        LAST_FORMATTED_STRING = f"( {' '.join(formatted_skills)} )"
+    LAST_TOOL_LIST = formatted_skills
 
     LAST_REFRESH_TIME = time.time()
 
 
-def get_tools_as_string() -> str:
+def get_tools_as_list() -> list[str]:
     _update_server_tools_if_needed()
-    return LAST_FORMATTED_STRING
+    return LAST_TOOL_LIST
 
 
 def call_tool(name: str, parameters_input: str | dict | None = None) -> str:
