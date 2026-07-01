@@ -21,20 +21,26 @@ CACHE_TTL_SECONDS = 300
 def _get_logger():
     _logger = logging.getLogger("MCPClientLogger")
     _logger.setLevel(logging.DEBUG)
+    _logger.propagate = False
 
-    file_handler = logging.FileHandler("mcp_client.log", "a")
-    file_handler.setLevel(logging.DEBUG)
+    if _logger.handlers:
+        return _logger
 
-    log_format = logging.Formatter("%(asctime)s – %(name)s – %(levelname)s – %(message)s")
-    file_handler.setFormatter(log_format)
+    stream_handler = logging.StreamHandler()
+    stream_handler.setLevel(logging.DEBUG)
 
-    _logger.addHandler(file_handler)
+    log_format = logging.Formatter(
+        "%(asctime)s - %(name)s - %(levelname)s - %(message)s"
+    )
+    stream_handler.setFormatter(log_format)
+
+    _logger.addHandler(stream_handler)
 
     return _logger
 
 
 logger = _get_logger()
-logger.debug(f"MCP_JSON_CONTENT = {MCP_JSON_CONTENT}")
+logger.debug(f"MCP_JSON_CONTENT configured: {bool(MCP_JSON_CONTENT)}")
 
 
 def _run_async(coro):
@@ -55,21 +61,21 @@ def _load_mcp_config_to_memory():
         try:
             config = json.loads(MCP_JSON_CONTENT)
             SERVERS_CONFIG_MAP = config.get("mcpServers", {})
-            logger.info(f"SERVERS_CONFIG_MAP: {SERVERS_CONFIG_MAP}")
+            logger.info(f"Configured MCP servers: {list(SERVERS_CONFIG_MAP)}")
             return
         except json.JSONDecodeError as e:
             logger.error(f"Failed to parse inner MCP_JSON_CONTENT string atom: {str(e)}")
 
     if not os.path.exists(CONFIG_PATH):
         SERVERS_CONFIG_MAP = {}
-        logger.info(f"SERVERS_CONFIG_MAP: {SERVERS_CONFIG_MAP}")
+        logger.info("Configured MCP servers: []")
         return
 
     with open(CONFIG_PATH, "r") as f:
         config = json.load(f)
 
     SERVERS_CONFIG_MAP = config.get("mcpServers", {})
-    logger.info(f"SERVERS_CONFIG_MAP: {SERVERS_CONFIG_MAP}")
+    logger.info(f"Configured MCP servers: {list(SERVERS_CONFIG_MAP)}")
 
 
 async def _discover_and_map_server(server_name: str, cfg: dict) -> list[str]:
