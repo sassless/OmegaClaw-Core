@@ -18,6 +18,8 @@ LLM_COMMANDS = {
     "tavily-search",
     "technical-analysis",
     "write-file",
+    "get-mcp-tools",
+    "call-mcp"
 }
 
 
