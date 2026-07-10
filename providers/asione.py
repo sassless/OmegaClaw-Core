@@ -47,7 +47,6 @@ class ASIOneProviderImpl(llm.AIProvider):
             raw = response.choices[0].message.content
             llm._log_raw(self._name, self._model_name, raw)
             resp = self._clean_text(raw)
-            resp = resp.replace("</arg_value>", " ").replace("</tool_call>", " ").replace("<arg_value>", " ").replace("<tool_call>", " ")
             return resp
         except Exception as e:
             print(f"[lib_llm_ext.ASIOneProviderImpl.chat] Exception while communicating with LLM: {e}")

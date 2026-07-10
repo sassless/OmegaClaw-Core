@@ -1,6 +1,6 @@
 import os
 import openai
-from typing import Optional
+from typing import Optional, Dict, Any
 import lib_llm_ext as llm
 import pluginapi as plugin
 
@@ -38,11 +38,47 @@ class OpenRouterProviderImpl(llm.AIProvider):
 
         return None
 
-    def chat(self, content: str, max_tokens: int = 6000, reasoning: str = "medium", **kwargs) -> str:
-        return super().chat(content, max_tokens, reasoning, extra_body={
+    def _openrouter_extra_body(self, content: str, max_tokens: int) -> Dict[str, Any]:
+        sysmsg, _ = llm._split_system_user(content)
+
+        body = {
             "reasoning": {
                 "enabled": True,
-                "max_tokens": 6000,
+                "max_tokens": max_tokens,
                 "exclude": True,
             }
-        }, **kwargs)
+        }
+
+        # Helps OpenRouter sticky-route requests for better cache locality.
+        # Keep this stable per agent/session.
+        session_id = os.environ.get("OPENROUTER_SESSION_ID")
+        if not session_id and sysmsg:
+            session_id = llm._stable_cache_key("openrouter", self._model_name, sysmsg)
+
+        if session_id:
+            body["session_id"] = session_id[:256]
+
+        model = self._model_name.lower()
+
+        # OpenRouter supports top-level cache_control for Anthropic Claude routes.
+        if model.startswith("anthropic/"):
+            body["cache_control"] = {
+                "type": "ephemeral",
+                "ttl": os.environ.get("OPENROUTER_CACHE_TTL", "5m"),
+            }
+
+        return body
+
+    def chat(self, content: str, max_tokens: int = 6000, reasoning: str = "medium", **kwargs) -> str:
+        extra_body = llm._merge_dicts(
+            self._openrouter_extra_body(content, max_tokens),
+            kwargs.pop("extra_body", None),
+        )
+
+        return super().chat(
+            content=content,
+            max_tokens=max_tokens,
+            reasoning=reasoning,
+            extra_body=extra_body,
+            **kwargs,
+        )
