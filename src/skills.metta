@@ -37,7 +37,6 @@
 (= (write-file $file $str)
    (progn (translatePredicate (open $file write $Out))
           (translatePredicate (write $Out $str))
-          (translatePredicate (nl $Out))
           (translatePredicate (close $Out))
           WRITE-FILE-SUCCESS))
 
