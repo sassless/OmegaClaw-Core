@@ -76,6 +76,10 @@ def _initPythonPlugin(plugin):
         print(f"_initPythonPlugin: loading {name} plugin from {location} using Python module loader")
         spec = importlib.util.spec_from_file_location(name, location)
         mod = importlib.util.module_from_spec(spec)
+        import sys
+        for _extra in (str(location.parent), str(_REPO)):
+            if _extra not in sys.path:
+                sys.path.insert(0, _extra)
         spec.loader.exec_module(mod)
 
     if mod is not None:
