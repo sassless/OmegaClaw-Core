@@ -18,7 +18,3 @@
        (progn (change-state! &lastsend $msg)
               (let $safemsg (string-replace $msg  "\n" "\\n")
                    (let $temp (cut) (commChannelSend $safemsg)))) _))
-
-;Search the internet for some information:
-(= (search $msg)
-   (py-call (websearch.search $msg)))
