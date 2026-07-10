@@ -61,7 +61,11 @@ import threading
 import time
 import uuid
 from collections import deque
-import pluginapi as plugin
+try:
+    import pluginapi as plugin
+except ModuleNotFoundError:
+    import types
+    plugin = types.SimpleNamespace(CommChannel=object, registerCommChannel=lambda *a, **k: None)
 
 _running = False
 _thread = None
