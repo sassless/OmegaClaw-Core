@@ -86,29 +86,30 @@ async def _discover_and_map_server(server_name: str, cfg: dict) -> list[str]:
 
     try:
         headers = cfg.get("headers", {})
-        async with sse_client(url=cfg["url"], headers=headers) as (r, w):
-            async with ClientSession(r, w) as session:
-                await session.initialize()
-                res = await session.list_tools()
-                logger.info(f"List tools for server {server_name}: {res}")
-                # return res.model_dump_json()
+        async with asyncio.timeout(30):
+            async with sse_client(url=cfg["url"], headers=headers) as (r, w):
+                async with ClientSession(r, w) as session:
+                    await session.initialize()
+                    res = await session.list_tools()
+                    logger.info(f"List tools for server {server_name}: {res}")
+                    # return res.model_dump_json()
 
-                # tools_found = []
-                # for tool in res.tools:
-                #     TOOL_ROUTING_MAP[tool.name] = server_name
-                #
-                #     schema = tool.inputSchema.get("properties", {})
-                #     tools_found.append(
-                #         (tool.name, tool.description, list(schema.keys()))
-                #     )
-                # return tools_found
+                    # tools_found = []
+                    # for tool in res.tools:
+                    #     TOOL_ROUTING_MAP[tool.name] = server_name
+                    #
+                    #     schema = tool.inputSchema.get("properties", {})
+                    #     tools_found.append(
+                    #         (tool.name, tool.description, list(schema.keys()))
+                    #     )
+                    # return tools_found
 
-            tools_found = []
-            for tool in res.tools:
-                TOOL_ROUTING_MAP[tool.name] = server_name
-                tools_found.append(tool.model_dump_json())
-            logger.info(f"TOOL_ROUTING_MAP: {TOOL_ROUTING_MAP}")
-            return tools_found
+                tools_found = []
+                for tool in res.tools:
+                    TOOL_ROUTING_MAP[tool.name] = server_name
+                    tools_found.append(tool.model_dump_json())
+                logger.info(f"TOOL_ROUTING_MAP: {TOOL_ROUTING_MAP}")
+                return tools_found
 
     except Exception as e:
         logger.error(f"Failed to scan tools from server '{server_name}': {str(e)}")
@@ -119,11 +120,12 @@ async def _discover_and_map_server(server_name: str, cfg: dict) -> list[str]:
 # and not to reconnect every time we call mcp server
 async def _execute_tool_on_server(cfg: dict, tool_name: str, arguments: dict):
     headers = cfg.get("headers", {})
-    async with sse_client(url=cfg["url"], headers=headers) as (r, w):
-        async with ClientSession(r, w) as session:
-            await session.initialize()
-            logger.info(f"Calling {tool_name} tool with arguments: {arguments}")
-            return await session.call_tool(tool_name, arguments=arguments)
+    async with asyncio.timeout(30):
+        async with sse_client(url=cfg["url"], headers=headers) as (r, w):
+            async with ClientSession(r, w) as session:
+                await session.initialize()
+                logger.info(f"Calling {tool_name} tool with arguments: {arguments}")
+                return await session.call_tool(tool_name, arguments=arguments)
 
 
 def _update_server_tools_if_needed(force_update: bool = False):
