@@ -18,6 +18,8 @@ LLM_COMMANDS = {
     "tavily-search",
     "technical-analysis",
     "write-file",
+    "get-mcp-tools",
+    "call-mcp"
 }
 
 
@@ -135,7 +137,7 @@ def _merge_send_continuations(lines):
 def balance_parentheses(s):
     s = s.replace("_quote_", '"').replace("_newline_", "\n")
     sexprs = []
-    special_two_arg_cmds = {"write-file", "append-file"}
+    special_two_arg_cmds = {"write-file", "append-file", "call-mcp"}
     lines = [line.strip() for line in s.splitlines() if line.strip()]
     lines = _merge_send_continuations(lines)
     for line in lines:
@@ -219,6 +221,7 @@ def test_balance_parenthesis():
     assert balance_parentheses('write-file "test.txt" "hello world"') == '((write-file "test.txt" "hello world"))'
     assert balance_parentheses('write-file test.txt "hello world"') == '((write-file "test.txt" "hello world"))'
     assert balance_parentheses('send test.xt hello world') == '((send "test.xt hello world"))'
+    assert balance_parentheses('call-mcp get_user_agents {}') == '((call-mcp "get_user_agents" "{}"))'
     assert balance_parentheses('send Here are the planets:\n1. Mercury\n2. Venus') == '((send "Here are the planets:\\n1. Mercury\\n2. Venus"))'
     assert balance_parentheses('send Here are the options:\n- MacBook Air\n- ThinkPad X1\npin done') == '((send "Here are the options:\\n- MacBook Air\\n- ThinkPad X1") (pin "done"))'
     assert balance_parentheses('send "Plain text version:"\n**Mars** - red planet\nNote: Pluto is a dwarf planet') == '((send "Plain text version:\\n**Mars** - red planet\\nNote: Pluto is a dwarf planet"))'

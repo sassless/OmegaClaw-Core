@@ -26,8 +26,10 @@
     "You can also use PLN:"
     "metta (|~ ((Implication (Inheritance $1 (IntSet Feathered))"
     "           (Inheritance $1 Bird)) (stv 1.0 0.9))"
-    "          ((Inheritance Pingu (IntSet Feathered)) (stv 1.0 0.9)))"))
-
+    "          ((Inheritance Pingu (IntSet Feathered)) (stv 1.0 0.9)))"
+    ;MCP:
+    "- Get all MCP tools with full description and data: get-mcp-tools"
+    "- Call MCP tool with parameters as json string: call-mcp name parameters_as_json_string"))
 
 (= (read-file $file)
    (progn (translatePredicate (exists_file $file))
@@ -53,6 +55,12 @@
 
 (= (technical-analysis $ticker)
    (py-call (agentverse.technical_analysis $ticker)))
+
+(= (get-mcp-tools)
+   (py-call (mcp_client.get_tools_as_list)))
+
+(= (call-mcp $name $parameters_as_json_string)
+   (py-call (mcp_client.call_tool $name $parameters_as_json_string)))
 
 !(import_prolog_functions_from_file (library OmegaClaw-Core ./src/skills.pl) (shell first_char gc read_file_tail))
 
