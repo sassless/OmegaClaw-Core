@@ -3,10 +3,13 @@ import json
 import logging
 import os
 import time
+from contextlib import asynccontextmanager
 from pathlib import Path
 
+import httpx
 from mcp import ClientSession
 from mcp.client.sse import sse_client
+from mcp.client.streamable_http import streamable_http_client
 
 CONFIG_PATH = Path(__file__).parents[1].joinpath("mcp.json")
 MCP_JSON_CONTENT = os.environ.get("MCP_JSON_CONTENT")
@@ -16,6 +19,7 @@ TOOL_ROUTING_MAP = {}  # tool name -> server name
 LAST_TOOL_LIST = []
 LAST_REFRESH_TIME = 0
 CACHE_TTL_SECONDS = 300
+MCP_OPERATION_TIMEOUT_SECONDS = 30
 
 
 def _get_logger():
@@ -78,6 +82,34 @@ def _load_mcp_config_to_memory():
     logger.info(f"Configured MCP servers: {list(SERVERS_CONFIG_MAP)}")
 
 
+@asynccontextmanager
+async def _connect_to_server(server_name: str, cfg: dict):
+    transport = cfg.get("transport", "sse")
+    headers = cfg.get("headers", {})
+
+    if transport == "sse":
+        async with sse_client(url=cfg["url"], headers=headers) as streams:
+            yield streams
+        return
+
+    if transport == "streamable-http":
+        async with httpx.AsyncClient(
+            headers=headers,
+            follow_redirects=True,
+            timeout=httpx.Timeout(MCP_OPERATION_TIMEOUT_SECONDS),
+        ) as http_client:
+            async with streamable_http_client(
+                url=cfg["url"],
+                http_client=http_client,
+            ) as (read_stream, write_stream, _):
+                yield read_stream, write_stream
+        return
+
+    raise ValueError(
+        f"Unsupported MCP transport '{transport}' for server '{server_name}'"
+    )
+
+
 async def _discover_and_map_server(server_name: str, cfg: dict) -> list[str]:
     global TOOL_ROUTING_MAP
 
@@ -85,9 +117,8 @@ async def _discover_and_map_server(server_name: str, cfg: dict) -> list[str]:
         return []
 
     try:
-        headers = cfg.get("headers", {})
-        async with asyncio.timeout(30):
-            async with sse_client(url=cfg["url"], headers=headers) as (r, w):
+        async with asyncio.timeout(MCP_OPERATION_TIMEOUT_SECONDS):
+            async with _connect_to_server(server_name, cfg) as (r, w):
                 async with ClientSession(r, w) as session:
                     await session.initialize()
                     res = await session.list_tools()
@@ -118,10 +149,11 @@ async def _discover_and_map_server(server_name: str, cfg: dict) -> list[str]:
 
 # we probably should use persistent session implementation to reuse session for multiple tool calls
 # and not to reconnect every time we call mcp server
-async def _execute_tool_on_server(cfg: dict, tool_name: str, arguments: dict):
-    headers = cfg.get("headers", {})
-    async with asyncio.timeout(30):
-        async with sse_client(url=cfg["url"], headers=headers) as (r, w):
+async def _execute_tool_on_server(
+    server_name: str, cfg: dict, tool_name: str, arguments: dict
+):
+    async with asyncio.timeout(MCP_OPERATION_TIMEOUT_SECONDS):
+        async with _connect_to_server(server_name, cfg) as (r, w):
             async with ClientSession(r, w) as session:
                 await session.initialize()
                 logger.info(f"Calling {tool_name} tool with arguments: {arguments}")
@@ -206,7 +238,9 @@ def call_tool(name: str, parameters_input: str | dict | None = None) -> str:
         args = dict(parameters_input)
 
     try:
-        tool_result = _run_async(_execute_tool_on_server(target_config, name, args))
+        tool_result = _run_async(
+            _execute_tool_on_server(server_name, target_config, name, args)
+        )
         logger.debug(f"tool_result: {tool_result}")
         text_responses = [c.text for c in tool_result.content if hasattr(c, "text")]
         logger.debug(f"text_responses: {text_responses}")
