@@ -74,6 +74,7 @@ Minimal JSON chat adapter over a WebSocket connection. Selected with `commchanne
 - Requires the `websockets` Python package.
 - When `WS_TOKEN` is set it is sent as an `Authorization: Bearer <token>` header. Unlike the IRC/Telegram/Slack adapters there is no one-time `auth <secret>` gate — trust is established by the endpoint URL and bearer token.
 - Reconnects automatically with exponential backoff (1s → 30s, ±20% jitter) and is safe to start once at process startup.
+- Native chat attachments require `WS_TOKEN`. OmegaClaw derives the authenticated attachment endpoint from the configured `WS_URL`; it never accepts a download URL from a WebSocket frame.
 
 ### Frame protocol
 
@@ -81,7 +82,7 @@ All frames are UTF-8 JSON objects with a `type` field; unknown types are logged 
 
 | Direction | `type` | Payload |
 |---|---|---|
-| server → client | `user_message` | `{seq, text}` — a new inbound message. `seq` is a server-assigned, monotonically increasing integer used for ordering and dedup. |
+| server → client | `user_message` | `{seq, text, attachments?}` — a new inbound message. `seq` is a server-assigned, monotonically increasing integer used for ordering and dedup. `attachments` defaults to an empty list. |
 | server → client | `ack` | `{seq, client_seq}` — acknowledges a previously sent `agent_message`. Informational; logged only. |
 | server → client | `error` | `{code, message}` — server-side error. Logged; the connection is left open. |
 | client → server | `agent_message` | `{client_seq, text}` — an outbound message. `client_seq` is a client-generated UUID idempotency key so the server can dedupe retries after reconnect. |
@@ -92,6 +93,16 @@ All frames are UTF-8 JSON objects with a `type` field; unknown types are logged 
 - Inbound messages buffer in a bounded inbox (256 entries). `getLastMessage` drains it, joins pending texts with `" | "`, and advances `last_seen_seq`.
 - Outbound messages produced while disconnected queue in a bounded outbox (100 entries) and flush after the next successful connect, before any new inbound traffic is processed.
 - Duplicate `user_message` frames (`seq <= last_seen_seq`, or already buffered) are dropped, so server replays after `resume` are idempotent.
+
+### Native chat attachments
+
+Each attachment descriptor contains `id`, `filename`, `content_type`, `size_bytes`, optional `sha256`, and `available`. Unknown descriptor fields are ignored for forward compatibility. An unavailable descriptor remains visible to the agent but is not downloaded.
+
+For available files, OmegaClaw replaces the trailing `/ws` in `WS_URL` with `/attachments/{id}`, changes `wss` to `https` (or `ws` to `http` for local development), and sends `WS_TOKEN` only to that same origin. The endpoint must return one `307` redirect to an HTTPS Amazon S3 URL. OmegaClaw follows that redirect without the bearer token, streams the object with exact declared-size and optional SHA-256 verification, and writes it under `/tmp/omegaclaw/uploads/{seq}` using a traversal-safe generated name.
+
+Text, Markdown, JSON, and CSV files are validated as bounded UTF-8 data. PDF originals are retained and bounded extracted text is written beside them using `pypdf==6.14.2`. Download and processing errors are included in the user turn instead of terminating the channel. Local files older than 24 hours are removed and the upload root is capped at 100 MiB. Clearing agent memory removes the complete upload root.
+
+Attachments are at-most-once at the message-processing boundary: the replay cursor advances when the inbox batch is copied, before file I/O. Downloads retry three times for transient errors; after a terminal failure the user must resend the attachment. A newly built and redeployed OmegaClaw image is required because the normal image installs the pinned PDF dependency from `requirements.txt`.
 
 ## `channels/websearch.py`
 

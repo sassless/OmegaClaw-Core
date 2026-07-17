@@ -19,9 +19,13 @@ logged and ignored.
 
 Server -> client:
 
-  ``{"type": "user_message", "seq": <int>, "text": <str>}``
+  ``{"type": "user_message", "seq": <int>, "text": <str>,
+  "attachments": [<descriptor>, ...]}``
       A new inbound message. ``seq`` is a monotonically increasing integer
       assigned by the server; the client uses it for ordering and dedup.
+      ``attachments`` is optional. Available files are downloaded with the
+      existing bearer token and rendered as safe local paths; unavailable or
+      failed files are rendered as visible context.
 
   ``{"type": "ack", "seq": <int|null>, "client_seq": <str>}``
       Acknowledges a previously sent ``agent_message`` identified by
@@ -45,8 +49,8 @@ Client -> server:
 Delivery semantics
 ------------------
 - Inbound messages are buffered in a bounded inbox (256 entries) and drained
-  by ``getLastMessage``, which joins pending texts with ``' | '`` and
-  advances ``last_seen_seq``.
+  by ``getLastMessage``, which preserves the existing ``' | '`` rendering for
+  text-only batches and advances ``last_seen_seq`` before attachment I/O.
 - Outbound messages sent while disconnected are queued in a bounded outbox
   (100 entries) and flushed after the next successful connect, before any
   new inbound traffic is processed.
@@ -61,6 +65,12 @@ import threading
 import time
 import uuid
 from collections import deque
+from dataclasses import dataclass
+
+from channels import chat_attachments
+
+
+AttachmentDownloadError = chat_attachments.AttachmentDownloadError
 
 _running = False
 _thread = None
@@ -76,6 +86,149 @@ _ws_token = ""
 _inbox = deque(maxlen=256)
 _outbox = deque(maxlen=100)
 _last_seen_seq = None
+_upload_cleanup_enabled = False
+_last_upload_cleanup_at = None
+_upload_cleanup_interval_seconds = 5 * 60
+_upload_cleanup_stop_event = threading.Event()
+_upload_cleanup_thread = None
+_max_attachments_per_message = 3
+
+
+@dataclass(frozen=True, slots=True)
+class AttachmentDescriptor:
+    id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    sha256: str | None
+    available: bool
+
+
+@dataclass(frozen=True, slots=True)
+class InboundMessage:
+    seq: int
+    text: str
+    attachments: tuple[AttachmentDescriptor, ...] = ()
+
+
+def _derive_attachment_download_url(ws_url, attachment_id):
+    return chat_attachments.derive_attachment_download_url(ws_url, attachment_id)
+
+
+def _open_http_request(request, *, allow_redirects, timeout_seconds):
+    return chat_attachments.open_http_request(
+        request,
+        allow_redirects=allow_redirects,
+        timeout_seconds=timeout_seconds,
+    )
+
+
+def _download_attachment(
+    attachment,
+    *,
+    seq,
+    ws_url,
+    ws_token,
+    upload_root=chat_attachments.UPLOAD_ROOT,
+):
+    return chat_attachments.download_attachment(
+        attachment,
+        seq=seq,
+        ws_url=ws_url,
+        ws_token=ws_token,
+        upload_root=upload_root,
+        open_request=_open_http_request,
+    )
+
+
+def _cleanup_upload_root(**kwargs):
+    return chat_attachments.cleanup_upload_root(**kwargs)
+
+
+def _process_attachment(path, content_type):
+    return chat_attachments.process_attachment(path, content_type)
+
+
+def _download_attachment_with_retries(attachment, *, seq, attempts=3):
+    last_error = None
+    for attempt in range(attempts):
+        try:
+            return _download_attachment(
+                attachment,
+                seq=seq,
+                ws_url=_ws_url,
+                ws_token=_ws_token,
+            )
+        except AttachmentDownloadError as exc:
+            last_error = exc
+            if attempt < attempts - 1:
+                time.sleep(0.25 * (2**attempt))
+    raise last_error
+
+
+def _render_attachment(message, attachment):
+    header = (
+        f"User attached {attachment.filename} ({attachment.content_type}, "
+        f"{attachment.size_bytes} bytes; id={attachment.id})."
+    )
+    if not attachment.available:
+        return f"{header}\nAttachment unavailable: retention expired or file revoked."
+
+    try:
+        local_path = _download_attachment_with_retries(attachment, seq=message.seq)
+    except AttachmentDownloadError as exc:
+        return f"{header}\nAttachment download error: {exc}"
+
+    result = _process_attachment(local_path, attachment.content_type)
+    lines = [header, f"Original file: {result.original_path}"]
+    if result.derived_text_path is not None and result.derived_text_path != result.original_path:
+        lines.append(f"Extracted text: {result.derived_text_path}")
+    if result.error is not None:
+        lines.append(f"Attachment processing error: {result.error}")
+    return "\n".join(lines)
+
+
+def _render_inbound_message(message):
+    if not message.attachments:
+        return message.text
+
+    lines = [f"[Message seq={message.seq}]"]
+    lines.extend(_render_attachment(message, attachment) for attachment in message.attachments)
+    lines.append(f"User request: {message.text}")
+    return "\n".join(lines)
+
+
+def _maybe_cleanup_uploads(*, force=False):
+    global _last_upload_cleanup_at
+    if not _upload_cleanup_enabled:
+        return
+
+    now = time.monotonic()
+    if (
+        not force
+        and _last_upload_cleanup_at is not None
+        and now - _last_upload_cleanup_at < _upload_cleanup_interval_seconds
+    ):
+        return
+    _last_upload_cleanup_at = now
+    try:
+        result = _cleanup_upload_root()
+        if result.removed_files:
+            _log(
+                "Attachment cleanup removed "
+                f"{result.removed_files} files; {result.remaining_bytes} bytes remain"
+            )
+    except Exception as exc:
+        _log(f"Attachment cleanup failed: {exc}")
+
+
+def _upload_cleanup_loop():
+    while _running:
+        if _upload_cleanup_stop_event.wait(_upload_cleanup_interval_seconds):
+            return
+        if not _running:
+            return
+        _maybe_cleanup_uploads(force=True)
 
 
 def _log(message):
@@ -151,13 +304,77 @@ def _send_json(payload, ws=None):
         target_ws.send(message)
 
 
-def _enqueue_user_message(seq, text):
+def _parse_attachment_descriptor(value):
+    if not isinstance(value, dict):
+        return None
+
+    attachment_id = value.get("id")
+    filename = value.get("filename")
+    content_type = value.get("content_type")
+    size_bytes = value.get("size_bytes")
+    sha256 = value.get("sha256")
+    available = value.get("available")
+
+    if not isinstance(attachment_id, str) or not attachment_id:
+        return None
+    if not isinstance(filename, str) or not filename:
+        return None
+    if not isinstance(content_type, str) or not content_type:
+        return None
+    if (
+        not isinstance(size_bytes, int)
+        or isinstance(size_bytes, bool)
+        or size_bytes <= 0
+        or size_bytes > chat_attachments.MAX_ATTACHMENT_BYTES
+    ):
+        return None
+    if sha256 is not None and (not isinstance(sha256, str) or not sha256):
+        return None
+    if not isinstance(available, bool):
+        return None
+
+    return AttachmentDescriptor(
+        id=attachment_id,
+        filename=filename,
+        content_type=content_type,
+        size_bytes=size_bytes,
+        sha256=sha256,
+        available=available,
+    )
+
+
+def _parse_attachment_descriptors(value):
+    if value is None:
+        return ()
+    if not isinstance(value, list):
+        _log("Ignoring malformed attachments payload")
+        return ()
+
+    attachments = []
+    attachment_ids = set()
+    for item in value:
+        attachment = _parse_attachment_descriptor(item)
+        if attachment is None:
+            _log(f"Ignoring malformed attachment descriptor: {item!r}")
+            continue
+        if attachment.id in attachment_ids:
+            _log(f"Ignoring duplicate attachment descriptor id={attachment.id}")
+            continue
+        if len(attachments) >= _max_attachments_per_message:
+            _log("Ignoring attachment descriptors above the per-message limit")
+            break
+        attachment_ids.add(attachment.id)
+        attachments.append(attachment)
+    return tuple(attachments)
+
+
+def _enqueue_user_message(seq, text, attachments=()):
     with _msg_lock:
         if _last_seen_seq is not None and seq <= _last_seen_seq:
             return False
-        if _inbox and seq <= _inbox[-1][0]:
+        if _inbox and seq <= _inbox[-1].seq:
             return False
-        _inbox.append((seq, text))
+        _inbox.append(InboundMessage(seq=seq, text=text, attachments=attachments))
         return True
 
 
@@ -182,7 +399,8 @@ def _handle_frame(raw_message):
         if not isinstance(seq, int) or not isinstance(text, str):
             _log(f"Ignoring malformed user_message frame: {frame!r}")
             return
-        _enqueue_user_message(seq, text)
+        attachments = _parse_attachment_descriptors(frame.get("attachments"))
+        _enqueue_user_message(seq, text, attachments)
         return
 
     if frame_type == "ack":
@@ -251,6 +469,7 @@ def _listener_loop():
 
 def start_websocket(ws_url=None, ws_token=None):
     global _running, _thread, _ws_url, _ws_token
+    global _upload_cleanup_enabled, _upload_cleanup_thread
 
     try:
         _ensure_websockets_available()
@@ -260,8 +479,17 @@ def start_websocket(ws_url=None, ws_token=None):
         return None
 
     _clear_connection()
+    _upload_cleanup_enabled = True
+    _maybe_cleanup_uploads(force=True)
 
     _running = True
+    _upload_cleanup_stop_event.clear()
+    _upload_cleanup_thread = threading.Thread(
+        target=_upload_cleanup_loop,
+        daemon=True,
+        name="websocket-attachment-cleanup",
+    )
+    _upload_cleanup_thread.start()
     _thread = threading.Thread(target=_listener_loop, daemon=True, name="websocket-channel")
     _thread.start()
     return _thread
@@ -270,6 +498,7 @@ def start_websocket(ws_url=None, ws_token=None):
 def stop_websocket():
     global _running
     _running = False
+    _upload_cleanup_stop_event.set()
 
     with _state_lock:
         active_ws = _ws
@@ -292,9 +521,13 @@ def getLastMessage():
 
         batch = list(_inbox)
         _inbox.clear()
-        _last_seen_seq = batch[-1][0]
+        _last_seen_seq = batch[-1].seq
 
-    return " | ".join(text for _, text in batch)
+    if all(not message.attachments for message in batch):
+        return " | ".join(message.text for message in batch)
+
+    _maybe_cleanup_uploads()
+    return "\n\n".join(_render_inbound_message(message) for message in batch)
 
 
 def send_message(text):

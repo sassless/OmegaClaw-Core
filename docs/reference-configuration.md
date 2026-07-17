@@ -49,7 +49,7 @@ This reads a command-line override via `argk` (`name=value` on the MeTTa command
 | `MM_URL` | `https://chat.singularitynet.io` | Mattermost base URL. |
 | `MM_CHANNEL_ID` | `8fjrmabjx7gupy7e5kjznpt5qh` | Target channel ID. |
 | `WS_URL` | *(empty — set at runtime)* | WebSocket endpoint URL (`ws://` or `wss://`). Required when `commchannel=websocket`. |
-| `WS_TOKEN` | *(empty — optional)* | Bearer token sent as `Authorization: Bearer <token>`. Leave empty for an unauthenticated endpoint. |
+| `WS_TOKEN` | *(empty — optional)* | Bearer token sent as `Authorization: Bearer <token>`. It is required for native chat attachment downloads. |
 
 | Environment variable | Meaning |
 |---|---|
@@ -76,5 +76,7 @@ WebSocket example:
 ```bash
 metta run.metta commchannel=websocket WS_URL=wss://chat.example.com/agent WS_TOKEN=...
 ```
+
+`WS_URL` must end in `/ws` when native chat attachments are enabled. Attachment files are stored under `/tmp/omegaclaw/uploads`, expire locally after 24 hours, and share a 100 MiB local cap. These bounds are intentionally fixed rather than exposed as runtime configuration in the first release.
 
 The `argk` helper parses `key=value` pairs from `argv`.
