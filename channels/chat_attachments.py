@@ -29,6 +29,17 @@ MAX_PDF_SECONDS = 10.0
 MAX_PDF_MEMORY_BYTES = 256 * 1024 * 1024
 
 
+@dataclass(frozen=True, slots=True)
+class AttachmentDescriptor:
+    id: str
+    filename: str
+    content_type: str
+    size_bytes: int
+    sha256: str | None
+    available: bool
+    download_link: str
+
+
 class AttachmentDownloadError(RuntimeError):
     pass
 
@@ -127,18 +138,16 @@ def download_attachment(
     attachment,
     *,
     seq,
-    ws_url,
     ws_token,
     upload_root=UPLOAD_ROOT,
-    open_request=open_http_request,
 ):
-    endpoint = derive_attachment_download_url(ws_url, attachment.id)
+    endpoint = attachment.download_link
     headers = {"Accept": "application/octet-stream"}
     if ws_token:
         headers["Authorization"] = f"Bearer {ws_token}"
 
     try:
-        with open_request(
+        with open_http_request(
             Request(endpoint, headers=headers),
             allow_redirects=False,
             timeout_seconds=DOWNLOAD_TIMEOUT_SECONDS,
@@ -167,7 +176,7 @@ def download_attachment(
     downloaded = 0
 
     try:
-        with open_request(
+        with open_http_request(
             Request(redirect_url, headers={"Accept": "application/octet-stream"}),
             allow_redirects=False,
             timeout_seconds=DOWNLOAD_TIMEOUT_SECONDS,

@@ -71,6 +71,7 @@ from channels import chat_attachments
 
 
 AttachmentDownloadError = chat_attachments.AttachmentDownloadError
+AttachmentDescriptor = chat_attachments.AttachmentDescriptor
 
 _running = False
 _thread = None
@@ -88,20 +89,10 @@ _outbox = deque(maxlen=100)
 _last_seen_seq = None
 _upload_cleanup_enabled = False
 _last_upload_cleanup_at = None
-_upload_cleanup_interval_seconds = 5 * 60
+_upload_cleanup_interval_seconds = 24 * 60 * 60
 _upload_cleanup_stop_event = threading.Event()
 _upload_cleanup_thread = None
 _max_attachments_per_message = 3
-
-
-@dataclass(frozen=True, slots=True)
-class AttachmentDescriptor:
-    id: str
-    filename: str
-    content_type: str
-    size_bytes: int
-    sha256: str | None
-    available: bool
 
 
 @dataclass(frozen=True, slots=True)
@@ -109,10 +100,6 @@ class InboundMessage:
     seq: int
     text: str
     attachments: tuple[AttachmentDescriptor, ...] = ()
-
-
-def _derive_attachment_download_url(ws_url, attachment_id):
-    return chat_attachments.derive_attachment_download_url(ws_url, attachment_id)
 
 
 def _open_http_request(request, *, allow_redirects, timeout_seconds):
@@ -127,17 +114,14 @@ def _download_attachment(
     attachment,
     *,
     seq,
-    ws_url,
     ws_token,
     upload_root=chat_attachments.UPLOAD_ROOT,
 ):
     return chat_attachments.download_attachment(
         attachment,
         seq=seq,
-        ws_url=ws_url,
         ws_token=ws_token,
         upload_root=upload_root,
-        open_request=_open_http_request,
     )
 
 
@@ -149,14 +133,13 @@ def _process_attachment(path, content_type):
     return chat_attachments.process_attachment(path, content_type)
 
 
-def _download_attachment_with_retries(attachment, *, seq, attempts=3):
+def _download_attachment_with_retries(attachment: AttachmentDescriptor, *, seq, attempts=3):
     last_error = None
     for attempt in range(attempts):
         try:
             return _download_attachment(
                 attachment,
                 seq=seq,
-                ws_url=_ws_url,
                 ws_token=_ws_token,
             )
         except AttachmentDownloadError as exc:
@@ -166,7 +149,7 @@ def _download_attachment_with_retries(attachment, *, seq, attempts=3):
     raise last_error
 
 
-def _render_attachment(message, attachment):
+def _render_attachment(message: InboundMessage, attachment: AttachmentDescriptor):
     header = (
         f"User attached {attachment.filename} ({attachment.content_type}, "
         f"{attachment.size_bytes} bytes; id={attachment.id})."
@@ -188,7 +171,7 @@ def _render_attachment(message, attachment):
     return "\n".join(lines)
 
 
-def _render_inbound_message(message):
+def _render_inbound_message(message: InboundMessage):
     if not message.attachments:
         return message.text
 
@@ -304,7 +287,7 @@ def _send_json(payload, ws=None):
         target_ws.send(message)
 
 
-def _parse_attachment_descriptor(value):
+def _parse_attachment_descriptor(value) -> AttachmentDescriptor | None:
     if not isinstance(value, dict):
         return None
 
@@ -314,6 +297,7 @@ def _parse_attachment_descriptor(value):
     size_bytes = value.get("size_bytes")
     sha256 = value.get("sha256")
     available = value.get("available")
+    download_link = value.get("download_link")
 
     if not isinstance(attachment_id, str) or not attachment_id:
         return None
@@ -340,10 +324,11 @@ def _parse_attachment_descriptor(value):
         size_bytes=size_bytes,
         sha256=sha256,
         available=available,
+        download_link=download_link,
     )
 
 
-def _parse_attachment_descriptors(value):
+def _parse_attachment_descriptors(value) -> tuple[AttachmentDescriptor] | tuple:
     if value is None:
         return ()
     if not isinstance(value, list):
