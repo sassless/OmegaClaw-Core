@@ -137,7 +137,7 @@ def _merge_send_continuations(lines):
 def balance_parentheses(s):
     s = s.replace("_quote_", '"').replace("_newline_", "\n")
     sexprs = []
-    special_two_arg_cmds = {"write-file", "append-file", "call-mcp"}
+    special_two_arg_cmds = {"write-file", "append-file", "call-mcp", "send"}
     lines = [line.strip() for line in s.splitlines() if line.strip()]
     lines = _merge_send_continuations(lines)
     for line in lines:

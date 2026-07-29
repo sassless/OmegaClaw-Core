@@ -12,6 +12,7 @@
         "- Append line to file: append-file filename string"
         ;COMMUNICATION CHANNELS:
         "- Send message to user: send string"
+        "- Send message to user with attachment: send string attachment_as_json_string"
         "- Search the web: search string"
         "- Search the web using the Tavily Search Agent: tavily-search string"
         "- Get technical analysis for a stock ticker using the Technical Analysis Agent: technical-analysis ticker"

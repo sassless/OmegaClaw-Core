@@ -66,6 +66,7 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass
+from json import JSONDecodeError
 
 from channels import chat_attachments
 
@@ -515,16 +516,36 @@ def getLastMessage():
     return "\n\n".join(_render_inbound_message(message) for message in batch)
 
 
-def send_message(text):
+def send_message(text, attachment_as_json: str | dict | None):
     message_text = str(text).replace("\\n", "\n").replace("\r", "")
     if not message_text:
         return
+
+    if isinstance(attachment_as_json, str):
+        try:
+            attachment_dict = json.loads(attachment_as_json)
+        except JSONDecodeError as e:
+            _log(f"Attachment can't be decoded: {e}")
+            attachment_dict = {}
+    elif isinstance(attachment_as_json, dict):
+        attachment_dict = attachment_as_json
+    else:
+        _log(f"Attachment has unexpected format: type={type(attachment_as_json)}, {attachment_as_json}")
+        attachment_dict = {}
 
     payload = {
         "type": "agent_message",
         "client_seq": uuid.uuid4().hex,
         "text": message_text,
+        "attachments": []
     }
+
+    if attachment_dict.get("id", None) is None:
+        _log(f"Attachment has unexpected fields: {attachment_dict}")
+        attachment_dict = {}
+
+    if attachment_dict:
+        payload["attachments"].append(attachment_dict)
 
     with _state_lock:
         connected = _connected

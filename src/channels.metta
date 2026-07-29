@@ -57,12 +57,16 @@
 
 ;Send a message to all communication channels:
 !(change-state! &lastsend "")
+
 (= (send $msg)
+   (send $msg ""))
+
+(= (send $msg $attachment)
    (if (!= $msg (get-state &lastsend))
        (progn (change-state! &lastsend $msg)
               (let $safemsg (string-replace $msg  "\n" "\\n")
                    (if (== (commchannel) websocket)
-                       (let $temp (cut) (py-call (wschat.send_message $safemsg)))
+                       (let $temp (cut) (py-call (wschat.send_message $safemsg $attachment)))
                        (if (== (commchannel) irc)
                            (let $temp (cut) (py-call (irc.send_message $safemsg)))
                            (if (== (commchannel) telegram)
