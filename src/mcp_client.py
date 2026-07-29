@@ -191,21 +191,36 @@ def _update_server_tools_if_needed(force_update: bool = False):
 
     formatted_skills = []
     for server_tools in resolved_lists:
-        # for name, desc, param_keys in tool_list:
-        #     formatted_skills.append(f'"- {desc}: call-mcp {name} {param_keys}"')
-        for server_tool_as_json_string in server_tools:
-            formatted_skills.append(server_tool_as_json_string)
+        for tool_data in server_tools:
+            if isinstance(tool_data, str):
+                try:
+                    parsed = json.loads(tool_data)
+                    name = parsed.get("name", "unknown")
+                    desc = parsed.get("description", "No description")
+                    # Extract parameter keys if inputSchema is present
+                    schema_props = parsed.get("inputSchema", {}).get("properties", {})
+                    params = list(schema_props.keys())
+                except json.JSONDecodeError:
+                    logger.error(f"Could not parse tool JSON: {tool_data}")
+                    continue
+            elif isinstance(tool_data, tuple):
+                name, desc, params = tool_data[0], tool_data[1], tool_data[2]
+            else:
+                continue
+
+            param_string = " ".join(params) if params else ""
+            skill_string = f"- {desc}: call-mcp {name} {param_string}".strip()
+
+            formatted_skills.append(skill_string)
 
     skills_for_log = "\n\t".join(formatted_skills)
-    logger.info(f"MCP_TOOLS_LIST:\n{skills_for_log}")
+    logger.info(f"MCP_TOOLS_LIST:\n\t{skills_for_log}")
 
     LAST_TOOL_LIST = formatted_skills
-
     LAST_REFRESH_TIME = time.time()
 
 
-def get_tools_as_list() -> list[str]:
-
+def get_tools_as_list() -> list:
     _update_server_tools_if_needed()
     return LAST_TOOL_LIST
 
