@@ -524,6 +524,7 @@ def send_message(text):
     except JSONDecodeError:
         _log(f"Message doesn't have attachment")
         attachment_as_json = {}
+    _log(f"Message to send via ws: text={text}, attachment={attachment_as_json}")
 
     message_text = str(text).replace("\\n", "\n").replace("\r", "")
     if not message_text:
@@ -565,6 +566,7 @@ def send_message(text):
         return
 
     try:
+        _log(f"Final message payload to send: {payload}")
         _send_json(payload, ws=active_ws)
     except Exception as exc:
         _log(f"Send failed, buffering for reconnect: {exc}")
