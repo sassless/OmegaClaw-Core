@@ -59,14 +59,11 @@
 !(change-state! &lastsend "")
 
 (= (send $msg)
-   (send $msg ""))
-
-(= (send $msg $attachment)
    (if (!= $msg (get-state &lastsend))
        (progn (change-state! &lastsend $msg)
               (let $safemsg (string-replace $msg  "\n" "\\n")
                    (if (== (commchannel) websocket)
-                       (let $temp (cut) (py-call (wschat.send_message $safemsg $attachment)))
+                       (let $temp (cut) (py-call (wschat.send_message $safemsg)))
                        (if (== (commchannel) irc)
                            (let $temp (cut) (py-call (irc.send_message $safemsg)))
                            (if (== (commchannel) telegram)

@@ -516,7 +516,15 @@ def getLastMessage():
     return "\n\n".join(_render_inbound_message(message) for message in batch)
 
 
-def send_message(text, attachment_as_json: str | dict | None):
+def send_message(text):
+    try:
+        msg_dict = json.loads(text)
+        text = msg_dict.get("text", "")
+        attachment_as_json = msg_dict.get("attachment", {})
+    except JSONDecodeError:
+        _log(f"Message doesn't have attachment")
+        attachment_as_json = {}
+
     message_text = str(text).replace("\\n", "\n").replace("\r", "")
     if not message_text:
         return
