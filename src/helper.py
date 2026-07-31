@@ -14,6 +14,7 @@ LLM_COMMANDS = {
     "remember",
     "search",
     "send",
+    "send-attachment",
     "shell",
     "tavily-search",
     "technical-analysis",
@@ -97,7 +98,8 @@ def _merge_send_continuations(lines):
     idx = 0
     while idx < len(lines):
         line = lines[idx]
-        if _get_command_name(line) != "send":
+        command = _get_command_name(line)
+        if command not in {"send", "send-attachment"}:
             merged.append(line)
             idx += 1
             continue
@@ -106,8 +108,14 @@ def _merge_send_continuations(lines):
         head = line.strip()
         while head.startswith("("):
             head = head[1:].lstrip()
-        parts = head.split(maxsplit=1)
-        payload = parts[1].strip() if len(parts) > 1 else ""
+        parts = head.split(maxsplit=2 if command == "send-attachment" else 1)
+        if command == "send-attachment":
+            attachment = parts[1] if len(parts) > 1 else ""
+            payload = parts[2].strip() if len(parts) > 2 else ""
+            command_prefix = f"send-attachment {attachment}"
+        else:
+            payload = parts[1].strip() if len(parts) > 1 else ""
+            command_prefix = "send"
         decoded_payload = _decode_quoted_arg(payload) if payload.startswith('"') else None
         text = decoded_payload if decoded_payload is not None else payload
 
@@ -128,7 +136,7 @@ def _merge_send_continuations(lines):
                 text = text + "\n" + "\n".join(continuations)
             else:
                 text = "\n".join(continuations)
-            merged.append(f"send {json.dumps(text, ensure_ascii=False)}")
+            merged.append(f"{command_prefix} {json.dumps(text, ensure_ascii=False)}")
         else:
             merged.append(line)
     return merged
@@ -137,7 +145,12 @@ def _merge_send_continuations(lines):
 def balance_parentheses(s):
     s = s.replace("_quote_", '"').replace("_newline_", "\n")
     sexprs = []
-    special_two_arg_cmds = {"write-file", "append-file", "call-mcp"}
+    special_two_arg_cmds = {
+        "write-file",
+        "append-file",
+        "call-mcp",
+        "send-attachment",
+    }
     lines = [line.strip() for line in s.splitlines() if line.strip()]
     lines = _merge_send_continuations(lines)
     for line in lines:
@@ -222,6 +235,26 @@ def test_balance_parenthesis():
     assert balance_parentheses('write-file test.txt "hello world"') == '((write-file "test.txt" "hello world"))'
     assert balance_parentheses('send test.xt hello world') == '((send "test.xt hello world"))'
     assert balance_parentheses('call-mcp get_user_agents {}') == '((call-mcp "get_user_agents" "{}"))'
+    assert (
+        balance_parentheses(
+            "send-attachment 550e8400-e29b-41d4-a716-446655440000 Here is the report."
+        )
+        == '((send-attachment "550e8400-e29b-41d4-a716-446655440000" "Here is the report."))'
+    )
+    assert (
+        balance_parentheses(
+            'send-attachment "550e8400-e29b-41d4-a716-446655440000" "Here is the report."'
+        )
+        == '((send-attachment "550e8400-e29b-41d4-a716-446655440000" "Here is the report."))'
+    )
+    assert (
+        balance_parentheses(
+            "send-attachment 550e8400-e29b-41d4-a716-446655440000 Here is the report:\n"
+            "- summary.pdf\npin sent"
+        )
+        == '((send-attachment "550e8400-e29b-41d4-a716-446655440000" '
+        '"Here is the report:\\n- summary.pdf") (pin "sent"))'
+    )
     assert balance_parentheses('send Here are the planets:\n1. Mercury\n2. Venus') == '((send "Here are the planets:\\n1. Mercury\\n2. Venus"))'
     assert balance_parentheses('send Here are the options:\n- MacBook Air\n- ThinkPad X1\npin done') == '((send "Here are the options:\\n- MacBook Air\\n- ThinkPad X1") (pin "done"))'
     assert balance_parentheses('send "Plain text version:"\n**Mars** - red planet\nNote: Pluto is a dwarf planet') == '((send "Plain text version:\\n**Mars** - red planet\\nNote: Pluto is a dwarf planet"))'

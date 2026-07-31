@@ -36,10 +36,11 @@ Server -> client:
 
 Client -> server:
 
-  ``{"type": "agent_message", "client_seq": <str>, "text": <str>}``
+  ``{"type": "agent_message", "client_seq": <str>, "text": <str>,
+  "attachments": [{"id": <str>}]}``
       A message produced by the local agent. ``client_seq`` is a
       client-generated idempotency key (UUID hex) so the server can dedupe
-      retries after reconnect.
+      retries after reconnect. ``attachments`` is optional.
 
   ``{"type": "resume", "last_seen_seq": <int|null>}``
       Sent immediately after every (re)connect. The server should replay
@@ -66,7 +67,6 @@ import time
 import uuid
 from collections import deque
 from dataclasses import dataclass
-from json import JSONDecodeError
 
 from channels import chat_attachments
 
@@ -516,46 +516,7 @@ def getLastMessage():
     return "\n\n".join(_render_inbound_message(message) for message in batch)
 
 
-def send_message(text):
-    try:
-        msg_dict = json.loads(text)
-        text = msg_dict.get("text", "")
-        attachment_as_json = msg_dict.get("attachment", {})
-    except JSONDecodeError:
-        _log(f"Message doesn't have attachment")
-        attachment_as_json = {}
-    _log(f"Message to send via ws: text={text}, attachment={attachment_as_json}")
-
-    message_text = str(text).replace("\\n", "\n").replace("\r", "")
-    if not message_text:
-        return
-
-    if isinstance(attachment_as_json, str):
-        try:
-            attachment_dict = json.loads(attachment_as_json)
-        except JSONDecodeError as e:
-            _log(f"Attachment can't be decoded: {e}")
-            attachment_dict = {}
-    elif isinstance(attachment_as_json, dict):
-        attachment_dict = attachment_as_json
-    else:
-        _log(f"Attachment has unexpected format: type={type(attachment_as_json)}, {attachment_as_json}")
-        attachment_dict = {}
-
-    payload = {
-        "type": "agent_message",
-        "client_seq": uuid.uuid4().hex,
-        "text": message_text,
-        "attachments": []
-    }
-
-    if attachment_dict.get("id", None) is None:
-        _log(f"Attachment has unexpected fields: {attachment_dict}")
-        attachment_dict = {}
-
-    if attachment_dict:
-        payload["attachments"].append(attachment_dict)
-
+def _send_or_buffer(payload):
     with _state_lock:
         connected = _connected
         active_ws = _ws
@@ -572,3 +533,33 @@ def send_message(text):
         _log(f"Send failed, buffering for reconnect: {exc}")
         with _msg_lock:
             _outbox.append(payload)
+
+
+def send_message(text):
+    message_text = str(text).replace("\\n", "\n").replace("\r", "")
+    if not message_text:
+        return
+
+    _send_or_buffer(
+        {
+            "type": "agent_message",
+            "client_seq": uuid.uuid4().hex,
+            "text": message_text,
+        }
+    )
+
+
+def send_message_with_attachment(text, attachment_id):
+    message_text = str(text).replace("\\n", "\n").replace("\r", "")
+    attachment_id = str(attachment_id).strip()
+    if not message_text or not attachment_id:
+        return
+
+    _send_or_buffer(
+        {
+            "type": "agent_message",
+            "client_seq": uuid.uuid4().hex,
+            "text": message_text,
+            "attachments": [{"id": attachment_id}],
+        }
+    )

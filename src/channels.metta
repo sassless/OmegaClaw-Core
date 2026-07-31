@@ -57,6 +57,7 @@
 
 ;Send a message to all communication channels:
 !(change-state! &lastsend "")
+!(change-state! &lastsendattachment "")
 
 (= (send $msg)
    (if (!= $msg (get-state &lastsend))
@@ -73,6 +74,22 @@
                                    (if (== (commchannel) mattermost)
                                        (let $temp (cut) (py-call (mattermost.send_message $safemsg)))
                                        (let $temp (cut) (py-call (mock.send_message $safemsg)))))))))) _))
+
+(= (send-attachment $attachment $msg)
+   (if (or (== $attachment "") (== $msg ""))
+       SEND-ATTACHMENT-INVALID-ARGUMENT
+       (let $sendkey (py-str ($attachment "|" $msg))
+            (if (!= $sendkey (get-state &lastsendattachment))
+                (if (== (commchannel) websocket)
+                    (progn (change-state! &lastsendattachment $sendkey)
+                           (let $safemsg (string-replace $msg "\n" "\\n")
+                                (let $temp (cut)
+                                     (py-call
+                                         (wschat.send_message_with_attachment
+                                             $safemsg
+                                             $attachment)))))
+                    SEND-ATTACHMENT-UNSUPPORTED-CHANNEL)
+                _))))
 
 ;Search the internet for some information:
 (= (search $msg)
