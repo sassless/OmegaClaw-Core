@@ -33,6 +33,7 @@
         ;MCP:
         "- Get all MCP tools with full description and data: get-mcp-tools"
         "- Call MCP tool with parameters as json string: call-mcp name parameters_as_json_string"
+        "Example to call MCP tool: (call-mcp mcp_tool_name {'first_parameter_name':'first_parameter_value','second_parameter_name':'second_parameter_value'})"
         ;DYNAMIC MCP TOOLS:
         $mcp_tools)))
 
