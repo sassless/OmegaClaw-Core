@@ -3,6 +3,7 @@ import re
 import glob
 import hashlib
 import logging
+import threading
 import traceback
 
 import chromadb
@@ -291,3 +292,13 @@ def init_knowledge(embedding_selection):
     except Exception as e:
         traceback.print_exc()
         return f"Knowledge init failed: {e}"
+
+
+def start_knowledge_init(embedding_selection):
+    """Start knowledge initialization without blocking agent startup."""
+
+    def worker():
+        print(init_knowledge(embedding_selection), flush=True)
+
+    threading.Thread(target=worker, name="knowledge-init", daemon=True).start()
+    return "Knowledge initialization started"
