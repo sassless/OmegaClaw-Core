@@ -2,6 +2,7 @@ import os
 import re
 import glob
 import hashlib
+import threading
 import chromadb
 import openai
 from   lib_llm_ext import initLocalEmbedding, useLocalEmbedding
@@ -203,6 +204,8 @@ def _store_hash(collection, filename, hash_val, embedding_dim):
 _embedding_dim = None
 _last_query = None
 _last_result = None
+_knowledge_init_lock = threading.Lock()
+_knowledge_init_thread = None
 
 
 def init_knowledge(embedding_selection):
@@ -297,3 +300,38 @@ def init_knowledge(embedding_selection):
     except Exception as e:
         logger.exception(f"Knowledge init failed: {e}", exc_info=True)
         return f"Knowledge init failed: {e}"
+
+
+def start_knowledge_init(embedding_selection):
+    """Start knowledge indexing in one background worker."""
+    global _knowledge_init_thread
+
+    with _knowledge_init_lock:
+        if (
+            _knowledge_init_thread is not None
+            and _knowledge_init_thread.is_alive()
+        ):
+            return "Knowledge initialization already running"
+
+        def worker():
+            global _knowledge_init_thread
+            current_thread = threading.current_thread()
+            try:
+                logger.info(init_knowledge(embedding_selection))
+            except Exception:
+                logger.exception(
+                    "Knowledge initialization worker failed", exc_info=True
+                )
+            finally:
+                with _knowledge_init_lock:
+                    if _knowledge_init_thread is current_thread:
+                        _knowledge_init_thread = None
+
+        _knowledge_init_thread = threading.Thread(
+            target=worker,
+            daemon=True,
+            name="knowledge-init",
+        )
+        _knowledge_init_thread.start()
+
+    return "Knowledge initialization started"

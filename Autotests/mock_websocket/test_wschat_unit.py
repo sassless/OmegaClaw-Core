@@ -14,6 +14,7 @@ test_*_ws_mock.py integration suite, which needs a `-t websocket` container.
 import importlib.util
 import json
 import os
+import sys
 import uuid
 
 import pytest
@@ -21,9 +22,12 @@ import pytest
 _WSCHAT_PATH = os.path.normpath(
     os.path.join(os.path.dirname(__file__), "..", "..", "channels", "wschat.py")
 )
+_CHANNEL_PATH = os.path.dirname(_WSCHAT_PATH)
 
 
 def _load_wschat():
+    if _CHANNEL_PATH not in sys.path:
+        sys.path.insert(0, _CHANNEL_PATH)
     spec = importlib.util.spec_from_file_location("wschat_under_test", _WSCHAT_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

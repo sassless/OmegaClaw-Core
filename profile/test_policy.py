@@ -4,7 +4,14 @@ import tempfile
 import multiprocessing
 import subprocess
 import traceback
+import sys
 from policy import FileSystemPolicy, LandLockCompatibility
+from py_landlock import AccessFs
+
+
+landlock_only = pytest.mark.skipif(
+    sys.platform != "linux", reason="Landlock requires Linux"
+)
 
 _TEST_POLICY_YAML = """
 version: 1
@@ -72,6 +79,7 @@ def temp_file(path, text):
     with open(path, "w") as f:
         f.write(text)
 
+@landlock_only
 def test_read_write_dir(temp_dir):
     run_in_separate_process(process_test_read_write_dir, (temp_dir,))
 
@@ -100,6 +108,7 @@ def process_test_read_write_dir(q, temp_dir):
         q.put((False, f"Cannot write to read-write directory"))
     q.put((True, None))
 
+@landlock_only
 def test_read_only_dir(temp_dir):
     run_in_separate_process(process_test_read_only_dir, (temp_dir,))
 
@@ -118,6 +127,7 @@ def process_test_read_only_dir(q, temp_dir):
         pass
     q.put((True, None))
 
+@landlock_only
 def test_read_only_file(temp_dir):
     run_in_separate_process(process_test_read_only_file, (temp_dir,))
 
@@ -131,6 +141,7 @@ def process_test_read_only_file(q, temp_dir):
         pass
     q.put((True, None))
 
+@landlock_only
 def test_read_write_file(temp_dir):
     run_in_separate_process(process_test_read_write_file, (temp_dir,))
 
@@ -143,6 +154,7 @@ def process_test_read_write_file(q, temp_dir):
         q.put((False, f"Cannot write to read-write file"))
     q.put((True, None))
 
+@landlock_only
 def test_read_device(temp_dir):
     run_in_separate_process(process_test_read_device, (temp_dir,))
 
@@ -160,6 +172,7 @@ def process_test_read_device(q, temp_dir):
         pass
     q.put((True, None))
 
+@landlock_only
 def test_read_write_dir_under_read_only_dir(temp_dir):
     run_in_separate_process(process_test_read_write_dir_under_read_only_dir, (temp_dir,))
 
@@ -188,6 +201,7 @@ def process_test_read_write_dir_under_read_only_dir(q, temp_dir):
         q.put((False, f"Cannot write to read-write directory"))
     q.put((True, None))
 
+@landlock_only
 def test_execute_shell(temp_dir):
     run_in_separate_process(process_test_execute_shell, (temp_dir,))
 
@@ -218,3 +232,5 @@ def test_load_landlock_compatibility_flag():
     assert policy._compatibility == LandLockCompatibility.HARD_REQUIREMENT
 
 
+def test_read_write_directory_access_allows_cross_directory_rename():
+    assert FileSystemPolicy.READ_WRITE_DIR_ACCESS & AccessFs.REFER

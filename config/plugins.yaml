@@ -58,3 +58,11 @@
 - name: workflow
   loader: metta
   location: "{REPO}/plugins/workflow"
+
+- name: mcp
+  loader: metta
+  location: "{REPO}/plugins/mcp"
+
+- name: asi_create_context
+  loader: metta
+  location: "{REPO}/plugins/asi_create_context"

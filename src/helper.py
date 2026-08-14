@@ -25,18 +25,23 @@ LLM_COMMANDS = {
     "remember",
     "search",
     "send",
+    "send-attachment",
     "shell",
     "tavily-search",
     "technical-analysis",
     "version",
     "write-file",
     "get-io-policy",
+    "get-mcp-tools",
+    "call-mcp",
     "write-file-b64",
 }
 TWO_ARG_COMMANDS = {
     "write-file",
     "append-file",
-    "write-file-b64"
+    "write-file-b64",
+    "call-mcp",
+    "send-attachment",
 }
 
 def extract_timestamp(line):
@@ -246,6 +251,18 @@ def test_omegaclaw_version():
 
 
 def test_balance_parenthesis():
+    assert balance_parentheses(
+        "send-attachment 550e8400-e29b-41d4-a716-446655440000 Here is the report."
+    ) == (
+        '((send-attachment "550e8400-e29b-41d4-a716-446655440000" '
+        '"Here is the report."))'
+    )
+    assert balance_parentheses("call-mcp get_user_agents {}") == (
+        '((call-mcp "get_user_agents" "{}"))'
+    )
+    assert balance_parentheses("send ready\nget-mcp-tools") == (
+        '((send "ready") (get-mcp-tools))'
+    )
     assert balance_parentheses('(write-file test.txt hello world)') == '((write-file "test.txt" "hello world"))'
     assert balance_parentheses('(append-file test.txt hello world)') == '((append-file "test.txt" "hello world"))'
     assert balance_parentheses('(write-file-b64 test.txt aGVsbG8=)') == '((write-file-b64 "test.txt" "aGVsbG8="))'

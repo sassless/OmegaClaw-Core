@@ -23,6 +23,10 @@ class CommChannel:
         """Send message via the communication channel"""
         raise NotImplementedError()
 
+    def send_attachment(self, attachment_id: str, message: str) -> bool:
+        """Send one existing attachment when supported by the channel."""
+        return False
+
 def registerCommChannel(id: str, channel: CommChannel) -> None:
     """Register communication channel in the registry"""
     global _commChannelRegistry
@@ -49,3 +53,8 @@ def commChannelSend(message):
     """Send message via selected communication channel"""
     global _commchannel
     _commchannel.send(message)
+
+def commChannelSendAttachment(attachment_id, message):
+    """Send an existing attachment through the selected channel."""
+    global _commchannel
+    return _commchannel.send_attachment(attachment_id, message)
