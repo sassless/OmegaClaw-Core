@@ -1,8 +1,8 @@
 from pathlib import Path
 
 
-def context_path(memory_directory: str) -> str:
-    directory = Path(str(memory_directory).strip('"'))
+def context_path(_memory_directory: str) -> str:
+    directory = Path(__file__).resolve().parents[2] / "memory"
     return str((directory / "asi_create_context.txt").resolve())
 
 

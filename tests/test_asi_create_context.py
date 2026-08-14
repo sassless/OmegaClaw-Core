@@ -29,12 +29,12 @@ def test_missing_context_returns_empty_string(tmp_path, context_file_module):
     assert context_file_module.read_context(tmp_path / "missing.txt") == ""
 
 
-def test_context_path_is_absolute_and_uses_the_managed_filename(
+def test_context_path_uses_the_repository_memory_directory(
     tmp_path, context_file_module
 ):
     assert context_file_module is not None
     assert context_file_module.context_path(tmp_path) == str(
-        (tmp_path / "asi_create_context.txt").resolve()
+        (MODULE_PATH.parents[2] / "memory" / "asi_create_context.txt").resolve()
     )
 
 
