@@ -194,7 +194,7 @@ def test_discovery_populates_tool_to_server_routes(monkeypatch, mcp_client):
     monkeypatch.setattr(mcp_client, "ClientSession", Session)
 
     assert mcp_client.get_tools_as_list() == [
-        "- List user agents: call-mcp get_user_agents user_id"
+        '- List user agents: call-mcp get_user_agents {"user_id":"<user_id>"}'
     ]
     assert mcp_client.TOOL_ROUTING_MAP == {"get_user_agents": "asi-create"}
 

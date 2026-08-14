@@ -100,9 +100,13 @@ async def _connect_to_server(
 
 def _tool_description(tool: Any) -> str:
     properties = getattr(tool, "inputSchema", {}).get("properties", {})
-    parameter_names = " ".join(properties) if isinstance(properties, dict) else ""
+    if not isinstance(properties, dict):
+        properties = {}
+    arguments = json.dumps(
+        {name: f"<{name}>" for name in properties}, separators=(",", ":")
+    )
     description = getattr(tool, "description", None) or "No description"
-    return f"- {description}: call-mcp {tool.name} {parameter_names}".rstrip()
+    return f"- {description}: call-mcp {tool.name} {arguments}"
 
 
 async def _discover_and_map_server(

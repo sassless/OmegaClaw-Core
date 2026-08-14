@@ -260,6 +260,12 @@ def test_balance_parenthesis():
     assert balance_parentheses("call-mcp get_user_agents {}") == (
         '((call-mcp "get_user_agents" "{}"))'
     )
+    assert balance_parentheses(
+        'call-mcp upload_file {"filename":"wow.txt","base64_string_content":"d293"}'
+    ) == (
+        '((call-mcp "upload_file" '
+        '"{\\"filename\\":\\"wow.txt\\",\\"base64_string_content\\":\\"d293\\"}"))'
+    )
     assert balance_parentheses("send ready\nget-mcp-tools") == (
         '((send "ready") (get-mcp-tools))'
     )
