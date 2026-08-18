@@ -65,7 +65,6 @@
                                (initKnowledge)
                                (initPlugins)
                                (initChannels)
-                               (commChannelSend (version))
                                (llmProviderStart (provider)))
                         (change-state! &loops (- (get-state &loops) 1)))
           (let $prompt (getContext)
