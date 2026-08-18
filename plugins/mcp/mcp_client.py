@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import asyncio
+import base64
 import json
 import os
 import sys
@@ -28,6 +29,12 @@ logger = get_logger(__name__)
 
 CACHE_TTL_SECONDS = 300
 MCP_OPERATION_TIMEOUT_SECONDS = 30
+FILE_REFERENCE_PREFIX = "@file:"
+FILE_REFERENCE_HINT = (
+    'Pass file content as "' + FILE_REFERENCE_PREFIX + '<path>" instead of inline '
+    "base64: the file is read and encoded locally, so its size is not limited by "
+    "the reply length."
+)
 
 SERVERS_CONFIG_MAP: dict[str, dict[str, Any]] = {}
 TOOL_ROUTING_MAP: dict[str, str] = {}
@@ -198,18 +205,54 @@ def get_tools_as_list() -> list[str]:
 
 
 def get_tools_prompt() -> str:
-    return "\n".join(get_tools_as_list())
+    tools = get_tools_as_list()
+    if not tools:
+        return ""
+    return "\n".join(tools + [FILE_REFERENCE_HINT])
+
+
+class FileReferenceError(ValueError):
+    """Raised when a @file: argument cannot be read from disk."""
+
+
+def _resolve_file_reference(value: str) -> str:
+    path = Path(value[len(FILE_REFERENCE_PREFIX):].strip())
+    try:
+        content = path.read_bytes()
+    except OSError as error:
+        raise FileReferenceError(str(path)) from error
+    return base64.b64encode(content).decode("ascii")
+
+
+def _resolve_file_references(value: Any) -> Any:
+    if isinstance(value, str) and value.startswith(FILE_REFERENCE_PREFIX):
+        return _resolve_file_reference(value)
+    if isinstance(value, dict):
+        return {key: _resolve_file_references(item) for key, item in value.items()}
+    if isinstance(value, list):
+        return [_resolve_file_references(item) for item in value]
+    return value
+
+
+def _loads(arguments: str) -> Any:
+    try:
+        return json.loads(arguments)
+    except json.JSONDecodeError as error:
+        if "Invalid control character" not in str(error):
+            raise
+        # A wrapped base64 payload carries raw newlines inside the JSON string.
+        return json.loads(arguments, strict=False)
 
 
 def _parse_arguments(arguments: Any) -> dict[str, Any]:
     if arguments is None:
         return {}
     if isinstance(arguments, dict):
-        return dict(arguments)
+        return _resolve_file_references(dict(arguments))
     if isinstance(arguments, str):
-        parsed = json.loads(arguments)
+        parsed = _loads(arguments)
         if isinstance(parsed, dict):
-            return parsed
+            return _resolve_file_references(parsed)
     raise ValueError("MCP tool arguments must be a JSON object")
 
 
@@ -231,7 +274,18 @@ def _public_result(result: Any) -> str:
 def call_tool(tool_name: str, arguments: Any = None) -> str:
     try:
         parsed_arguments = _parse_arguments(arguments)
-    except (json.JSONDecodeError, TypeError, ValueError) as error:
+    except FileReferenceError as error:
+        logger.warning("MCP file reference is not readable")
+        return f"Error: MCP file reference is not readable: {error}"
+    except json.JSONDecodeError as error:
+        if "Unterminated string" in str(error):
+            logger.warning("MCP tool arguments look truncated")
+            return (
+                "Error: MCP tool arguments look truncated. " + FILE_REFERENCE_HINT
+            )
+        logger.warning("Invalid MCP tool arguments (%s)", type(error).__name__)
+        return "Error: MCP operation failed"
+    except (TypeError, ValueError) as error:
         logger.warning("Invalid MCP tool arguments (%s)", type(error).__name__)
         return "Error: MCP operation failed"
 
