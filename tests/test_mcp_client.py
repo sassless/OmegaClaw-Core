@@ -1,4 +1,5 @@
 import asyncio
+import base64
 import importlib.util
 import logging
 import sys
@@ -349,3 +350,71 @@ def test_operational_failures_use_stable_public_errors(monkeypatch, mcp_client):
 
     monkeypatch.setattr(mcp_client, "_execute_tool_on_server", failed)
     assert mcp_client.call_tool("tool", {}) == "Error: MCP operation failed"
+
+
+def test_file_reference_argument_is_replaced_with_the_file_content(tmp_path, mcp_client):
+    payload = b"report body\nsecond line\n"
+    source = tmp_path / "report.txt"
+    source.write_bytes(payload)
+
+    parsed = mcp_client._parse_arguments(
+        '{"filename":"report.txt","base64_string_content":"@file:' + str(source) + '"}'
+    )
+
+    assert parsed["base64_string_content"] == base64.b64encode(payload).decode("ascii")
+    assert parsed["filename"] == "report.txt"
+
+
+def test_file_reference_carries_a_payload_larger_than_a_model_reply(tmp_path, mcp_client):
+    payload = bytes(range(256)) * 800  # 200 KB, far beyond maxOutputToken
+    source = tmp_path / "big.bin"
+    source.write_bytes(payload)
+
+    parsed = mcp_client._parse_arguments(
+        '{"base64_string_content":"@file:' + str(source) + '"}'
+    )
+
+    assert base64.b64decode(parsed["base64_string_content"]) == payload
+
+
+def test_missing_file_reference_is_reported_as_such(tmp_path, mcp_client):
+    missing = tmp_path / "absent.txt"
+
+    result = mcp_client.call_tool(
+        "upload_file", '{"base64_string_content":"@file:' + str(missing) + '"}'
+    )
+
+    assert "file reference" in result.lower()
+
+
+def test_line_wrapped_base64_argument_is_still_accepted(mcp_client):
+    wrapped = "QUFBQUFB\nQkJCQkJC"
+
+    parsed = mcp_client._parse_arguments(
+        '{"base64_string_content":"' + wrapped + '"}'
+    )
+
+    assert parsed["base64_string_content"] == wrapped
+
+
+def test_truncated_arguments_are_reported_as_truncated(mcp_client):
+    truncated = '{"filename":"x.txt","base64_string_content":"QUFBQUFB'
+
+    result = mcp_client.call_tool("upload_file", truncated)
+
+    assert "truncat" in result.lower()
+
+
+def test_tool_prompt_documents_the_file_reference_syntax(monkeypatch, mcp_client):
+    monkeypatch.setattr(
+        mcp_client, "_update_server_tools_if_needed", lambda *args, **kwargs: None
+    )
+    monkeypatch.setattr(
+        mcp_client,
+        "LAST_TOOL_LIST",
+        ['- Upload a file: call-mcp upload_file {"base64_string_content":"<base64_string_content>"}'],
+    )
+
+    prompt = mcp_client.get_tools_prompt()
+
+    assert "@file:" in prompt
