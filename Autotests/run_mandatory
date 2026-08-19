@@ -25,6 +25,7 @@ mock/test_run_repeated_mock.py
 mock/test_search_basic_mock.py
 mock/test_search_invalid_mock.py
 mock/test_search_weather_mock.py
+mock/test_send_attachment_no_rerun_mock.py
 mock/test_skill_metta_mock.py
 mock/test_skill_pin_mock.py
 mock/test_tavily_search_mock.py
