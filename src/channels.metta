@@ -39,8 +39,9 @@
          (if (== $sendkey (get-state &lastsendattachment))
              SEND-ATTACHMENT-SUCCESS
              (let $safemsg (string-replace $msg "\n" "\\n")
-               (if (commChannelSendAttachment $attachment-id $safemsg)
-                   (progn
-                     (change-state! &lastsendattachment $sendkey)
-                     SEND-ATTACHMENT-SUCCESS)
-                   SEND-ATTACHMENT-UNSUPPORTED-CHANNEL))))))
+               (let $temp (cut)
+                 (if (commChannelSendAttachment $attachment-id $safemsg)
+                     (progn
+                       (change-state! &lastsendattachment $sendkey)
+                       SEND-ATTACHMENT-SUCCESS)
+                     SEND-ATTACHMENT-UNSUPPORTED-CHANNEL)))))))
