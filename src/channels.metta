@@ -44,4 +44,4 @@
                      (progn
                        (change-state! &lastsendattachment $sendkey)
                        SEND-ATTACHMENT-SUCCESS)
-                     SEND-ATTACHMENT-UNSUPPORTED-CHANNEL)))))))
+                     SEND-ATTACHMENT-FAILED)))))))

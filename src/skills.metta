@@ -20,7 +20,8 @@
     "- Get a list of allowed base paths for reading, writing, and updating files: get-io-policy"
     ;COMMUNICATION CHANNELS:
     "- Send message to user: send string"
-    "- Send one existing chat attachment with a message: send-attachment attachment_id message"
+    "- Send a file as an attachment, using the id returned by upload_file: send-attachment attachment_id message"
+    "An attachment id can be sent only once. Ids of files the user sent you cannot be reused - upload the file again to get a new id."
     "- Search the web: websearch string"
     "- Search the web using the Tavily Search Agent: tavily-search string"
     "- Get technical analysis for a stock ticker using the Technical Analysis Agent: technical-analysis ticker"

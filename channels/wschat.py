@@ -97,6 +97,9 @@ _inbox = deque(maxlen=256)
 _outbox = deque(maxlen=100)
 _last_seen_seq = None
 _upload_cleanup_enabled = False
+_pending_lock = threading.Lock()
+_pending_sends = {}
+ATTACHMENT_VERDICT_TIMEOUT_SECONDS = 10
 _last_upload_cleanup_at = None
 _upload_cleanup_interval_seconds = 24 * 60 * 60
 _upload_cleanup_stop_event = threading.Event()
@@ -389,10 +392,12 @@ def _handle_frame(raw_message):
 
     if frame_type == "ack":
         logger.info(f"Ack received for seq={frame.get('seq')} client_seq={frame.get('client_seq')}")
+        _resolve_pending(frame.get("client_seq"))
         return
 
     if frame_type == "error":
         logger.error(f"Server error {frame.get('code')}: {frame.get('message')}")
+        _resolve_pending(None, error=frame.get("code") or "unknown_error")
         return
 
     logger.warning(f"Ignoring unsupported frame type: {frame_type!r}")
@@ -514,6 +519,32 @@ def getLastMessage():
     return "\n\n".join(_render_inbound_message(message) for message in batch)
 
 
+
+def _register_pending(client_seq):
+    entry = {"event": threading.Event(), "error": None}
+    with _pending_lock:
+        _pending_sends[client_seq] = entry
+    return entry
+
+
+def _discard_pending(client_seq):
+    with _pending_lock:
+        _pending_sends.pop(client_seq, None)
+
+
+def _resolve_pending(client_seq, error=None):
+    with _pending_lock:
+        if client_seq is None:
+            if not _pending_sends:
+                return
+            client_seq = next(iter(_pending_sends))
+        entry = _pending_sends.pop(client_seq, None)
+    if entry is None:
+        return
+    entry["error"] = error
+    entry["event"].set()
+
+
 def _send_or_buffer(payload):
     with _state_lock:
         connected = _connected
@@ -553,14 +584,31 @@ def send_message_with_attachment(text, attachment_id):
     if not message_text or not attachment_id:
         return False
 
-    return _send_or_buffer(
-        {
-            "type": "agent_message",
-            "client_seq": uuid.uuid4().hex,
-            "text": message_text,
-            "attachments": [{"id": attachment_id}],
-        }
-    )
+    client_seq = uuid.uuid4().hex
+    payload = {
+        "type": "agent_message",
+        "client_seq": client_seq,
+        "text": message_text,
+        "attachments": [{"id": attachment_id}],
+    }
+
+    with _state_lock:
+        connected = _connected
+
+    if not connected:
+        return _send_or_buffer(payload)
+
+    entry = _register_pending(client_seq)
+    try:
+        _send_or_buffer(payload)
+        if not entry["event"].wait(ATTACHMENT_VERDICT_TIMEOUT_SECONDS):
+            return True
+        if entry["error"] is not None:
+            logger.error(f"Attachment send rejected by server: {entry['error']}")
+            return False
+        return True
+    finally:
+        _discard_pending(client_seq)
 
 
 class WSChannel(channels.CommChannel):
