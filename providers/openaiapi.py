@@ -51,5 +51,5 @@ def loadOmegaClawPlugin():
     providers.registerLLMProvider("OpenAIAPI", OpenAIAPI("OpenAIAPI"))
     asicloud_model = config_get_by_key("asicloud_model", "minimax/minimax-m3")
     providers.registerLLMProvider("ASICloud", OpenAIAPIPreconfigured("ASICloud", "ASI_API_KEY", asicloud_model, "https://inference.asicloud.cudos.org/v1"))
-    anthropic_model = config_get_by_key("anthropic_model", "claude-opus-4-8")
+    anthropic_model = config_get_by_key("anthropic_model", "claude-sonnet-5")
     providers.registerLLMProvider("Anthropic", OpenAIAPIPreconfigured("Anthropic", "ANTHROPIC_API_KEY", anthropic_model, "https://api.anthropic.com/v1/"))
