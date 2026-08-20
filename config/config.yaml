@@ -100,7 +100,7 @@ asicloud_model: "minimax/minimax-m3"
 
 # Anthropic
 # Default model
-anthropic_model: "claude-opus-4-8"
+anthropic_model: "claude-sonnet-5"
 
 # OpenRouter
 # Default model
