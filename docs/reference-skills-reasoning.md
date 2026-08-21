@@ -18,7 +18,9 @@ Evaluate an arbitrary MeTTa s-expression in the agent's AtomSpace. Primary use i
 - `sexpression` — a MeTTa s-expression. Read by `sread`, evaluated by `eval`.
 
 ### Returns
-Whatever the inner expression returns. For NAL/PLN calls, this is a conclusion atom paired with an `(stv frequency confidence)` truth value.
+Whatever the inner expression returns.
+
+For NAL and PLN calls this is a **set** of conclusions, not a single one. Both `|-` and `|~` are defined as `unique-atom (collapse (superpose ...))` over the two premise orderings, so every rule that matches contributes a conclusion, each paired with its own `(stv frequency confidence)`. A pair of premises that satisfies two rules returns both results.
 
 ### Examples
 
@@ -55,8 +57,8 @@ These are policy decisions, not part of the `metta` skill's API. See [reference-
 
 - Independent variables are written `$1`, `$2`, …
 - Negated knowledge uses `(stv 0.0 c)`.
-- `metta` evaluates **any** MeTTa expression, not just reasoning calls. Malformed input reports errors through `&error` on the next turn.
-- Confidence decays ~10% per deduction hop. Chains past 3 hops usually fall below the ACT threshold — see [tutorial-08-reliable-reasoning.md](./tutorial-08-reliable-reasoning.md).
+- `metta` evaluates **any** MeTTa expression, not just reasoning calls, and it evaluates in `&self` — the same space the agent's own program lives in. Malformed input reports errors through `&error` on the next turn.
+- Confidence decays through deduction chains. On certain premises at `(stv 1.0 0.9)` it falls 0.81, 0.73, 0.66, 0.59, 0.53 and first drops below the ACT threshold of 0.5 on the sixth hop. Uncertain premises decay much faster, because NAL deduction multiplies the frequencies into the confidence as well — see [tutorial-08-reliable-reasoning.md](./tutorial-08-reliable-reasoning.md).
 - Premise formulation is the primary failure surface. Verify term order, copula, and granularity before trusting a conclusion. See [reference-failure-modes.md](./reference-failure-modes.md).
 
 ---

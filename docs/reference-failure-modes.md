@@ -87,9 +87,13 @@ Some rules are implemented but behave in unexpected ways. Know these before writ
 
 Measured across 4,500+ operational cycles, the top error categories are:
 
-1. **Commands not executed** (`NOTHING_WAS_DONE`) — the LLM produced output that was not a valid skill tuple.
-2. **Multi-command parsing failures.**
-3. **Parenthesis mismatches** — repaired best-effort by `helper.balance_parentheses`, but not always successfully.
+The loop tags each of them with a distinct error atom, and the exact strings matter when grepping a log:
+
+1. **Unknown skill name** (`UNKNOWN_SKILL_CALL`) — the first token of a command block is not in `LLM_COMMANDS`. Raised in `src/helper.py` during parsing and caught in `src/loop.metta` before evaluation, so nothing is executed. Note the check is positional: an unknown name that appears *inside* a block, rather than opening one, is absorbed into the previous command's argument and produces no error at all.
+2. **Single command failed** (`SINGLE_COMMAND_ERROR_NOTHING_WAS_DONE_PLEASE_FIX_AND_RETRY`) — the block parsed but evaluation raised.
+3. **Multi-command parsing failure** (`MULTI_COMMAND_FAILURE_NOTHING_WAS_DONE_PLEASE_CORRECT_PARENTHESES_AND_USE_QUOTES_AND_RETRY`) — the response as a whole could not be turned into skill tuples.
+
+`helper.balance_parentheses` does not repair mismatched parentheses despite its name; it splits the response into blocks and quotes the arguments. An unterminated argument stays unterminated and surfaces as one of the errors above.
 
 These are **the most frequent failure mode in the entire system**, not occasional glitches.
 
@@ -99,7 +103,9 @@ When a new human message arrives during autonomous work, the LLM attempts to sim
 
 ### Bandwidth constraint
 
-The 5-command-per-cycle limit means complex reasoning chains require 10–20 cycles. Budget accordingly.
+The prompt asks the model for at most five commands per cycle (`OUTPUT_FORMAT: Up to 5 lines` in `src/loop.metta`), so complex reasoning chains require 10–20 cycles. Budget accordingly.
+
+This is guidance, not a limit. Nothing in the parser or the loop caps the number of commands, so a model that ignores the instruction will have all of its commands executed.
 
 ### State fragility
 
@@ -148,7 +154,7 @@ Four layers designed to hold the system together despite the above. Each is desc
 Before trusting a conclusion:
 
 - [ ] Were premises externally grounded? If not, reduce confidence.
-- [ ] Was the chain ≤ 3 hops, or was revision used to restore confidence?
+- [ ] Was the chain short enough for the premise quality? Certain premises hold above the ACT threshold for five hops; premises at `f = 0.9` fall below it on the second. If not, was revision used to restore confidence?
 - [ ] Did the conclusion clear the ACT threshold (`f ≥ 0.6, c ≥ 0.5`)?
 - [ ] Are premises stored in memory with provenance?
 - [ ] On a re-run, does the answer reproduce (low variance)?
@@ -158,6 +164,8 @@ Before trusting a conclusion:
 ## Empirical context
 
 The numbers on this page come from operational experience with **Max Botnick**, an OmegaClaw-hosted agent used by the project maintainers for internal reasoning experiments. Max ran **3,100+ continuous cycles minimum** (4,500+ cycles with full error instrumentation) and self-authored the whitepaper from which this documentation draws. The measurements are therefore OmegaClaw-on-OmegaClaw evaluations, with all the caveats that implies — they are indicative of the framework under realistic workloads but not a formal benchmark.
+
+Neither the logs nor a harness for that run is in this repository, so the rates cannot be re-derived from a checkout, and none of them is covered by an automated test. Treat them as historical observations on an earlier build. Anything derived from a truth-value formula, on the other hand, can be checked directly against `lib_nal.metta` and `lib_pln.metta` — prefer recomputing over citing when the two disagree.
 
 ## See also
 

@@ -25,7 +25,8 @@ Use the `scripts/omegaclaw` wrapper. It takes care of `--init`, `--user`, the `-
 The container connects back to the host on TCP port 9765 to reach the mock LLM controller and on TCP port 9766 to reach the test communication channel server. `TEST_SERVER_IP` must hold the host IP that is reachable from inside the container; under the default Docker bridge this is `172.17.0.1`.
 
 ```
-env TEST_SERVER_IP=172.17.0.1 ./scripts/omegaclaw start -s 0000 -p Test -t test -d omegaclaw:mock
+env TEST_SERVER_IP=172.17.0.1 OMEGACLAW_OPENCLAW_TOKEN=<token> \
+  ./scripts/omegaclaw start -s 0000 -p Test -t test -d omegaclaw:mock -g "http://172.17.0.1:18789"
 ```
 
 Notes:
@@ -36,6 +37,10 @@ Notes:
 - `-d omegaclaw:mock` points at the local image built in step 2.
 - `TEST_SERVER_IP=172.17.0.1` is the host's docker-bridge address used by both the mock LLM provider and the test channel client.
 - The container is created with the name `omegaclaw` (the script default).
+- `-g` points the container's Nginx `/openclaw/` proxy at the Gateway stub the suite starts, and
+  sets `openClawEnabled`/`openClawURL`. Leave `-g` and `OMEGACLAW_OPENCLAW_TOKEN` out and the eight
+  OpenClaw tests skip: the run then reports green over 117 of the 125 tests in `run_mandatory`
+  while the delegation path is not exercised at all. See "5a. OpenClaw plugin" below.
 
 Wait until the agent loop is up. The first runtime `CHARS_SENT:` line (with a byte count after the colon) in the container log marks the end of `initChannels` / `initMemory` and the start of real iterations; the bare `CHARS_SENT:` string also appears earlier as part of the MeTTa source dump, so match on the numeric form to avoid a premature exit:
 
@@ -62,10 +67,32 @@ export OMEGACLAW_GIT_TOKEN=<github_pat>     # only required by test_git_push_to_
 ```
 cd Autotests
 source venv/bin/activate
-pytest -s -v mock/test_*_mock.py
+pytest -s -v mock/test_*_mock.py                    # expect: 47 passed
 ```
 
-The `LlmMockController`, `CommMockServer`, and the OpenClaw Gateway stub are provided by session-scoped fixtures in `mock/conftest.py`, so all three are started once per pytest session. Expected output: `42 passed`, minus the ones whose optional variables are unset - `test_git_push_to_remote_mock` skips without `OMEGACLAW_GIT_TOKEN`, and the six OpenClaw tests skip without `OMEGACLAW_OPENCLAW_TOKEN` (see "OpenClaw plugin" below).
+The glob covers the 37 `test_*_mock.py` files described below. It leaves out the three infrastructure
+files that share this directory - `test_comm.py`, `test_llm.py`, `test_rpc.py` (14 more tests, which
+check the harness itself rather than the agent). To run the directory whole:
+
+```
+pytest -s -v mock                                   # expect: 61 passed
+```
+
+The `LlmMockController`, `CommMockServer`, and the OpenClaw Gateway stub are provided by session-scoped fixtures in `mock/conftest.py`, so all three are started once per pytest session. Subtract the ones whose optional variables are unset - `test_git_push_to_remote_mock` skips without `OMEGACLAW_GIT_TOKEN`, and the eight OpenClaw tests skip without `OMEGACLAW_OPENCLAW_TOKEN` (see "OpenClaw plugin" below).
+
+### What runs in CI
+
+Every file in this directory is registered, split across the two lists CI reads:
+
+- `Autotests/run_mandatory` - 34 of the 40 files, 55 tests. Run as
+  `pytest -s -v @run_mandatory` in the blocking phase, so a failure here fails the PR. The list also
+  pulls in files from outside this directory, 125 tests in total.
+- `Autotests/run_optional` - the remaining 6 files, 6 tests
+  (`test_complex_weather_flow_mock`, `test_git_push_to_remote_mock`, `test_memory_episode_mock`,
+  `test_run_create_dirs_mock`, `test_skill_episodes_mock`, `test_skill_query_mock`). Run as
+  `pytest -s -v @run_optional` under `continue-on-error`, so a failure there does not block the PR.
+
+A file added here later and left out of both lists never runs in CI, whatever the diff says.
 
 ## 5a. OpenClaw plugin (`test_openclaw_delegate_mock.py`)
 
@@ -108,7 +135,7 @@ This removes the `omegaclaw` container and the `omegaclaw-memory` volume created
 
 # Tests description
 
-All 42 tests follow the same pattern: the test registers a fixed mock-LLM answer for the prompt via `llm.set_answer(prompt, response)`, delivers the prompt to the agent over the test channel via `comm.send_message(prompt)`, then verifies the resulting skill calls and side effects (filesystem, `history.metta`, ChromaDB, docker logs). The OpenClaw group additionally drives the stub Gateway, whose replies are real rather than scripted. Because the LLM is deterministic, no `try_with_clarification` retries are needed; every test either passes on the first attempt or fails outright.
+All 47 tests follow the same pattern: the test registers a fixed mock-LLM answer for the prompt via `llm.set_answer(prompt, response)`, delivers the prompt to the agent over the test channel via `comm.send_message(prompt)`, then verifies the resulting skill calls and side effects (filesystem, `history.metta`, ChromaDB, docker logs). The OpenClaw group additionally drives the stub Gateway, whose replies are real rather than scripted. Because the LLM is deterministic, no `try_with_clarification` retries are needed; every test either passes on the first attempt or fails outright.
 
 ## Creating files
 
@@ -389,7 +416,7 @@ Delegates an empty message - no network call and no worker thread, since the ski
 Verifies the "new session per delegation" contract from the plugin README: two independent delegations in the same turn must not share a Gateway session:
 
 - Mock answer: two `(metta (write-file ... (delegate-task-to-openclaw-agent "Reply with exactly: FIRST-<run_id>" / "SECOND-<run_id>")))` calls, then `(send "Both delegations saved <run_id>")`.
-- Checks: both envelopes are `accepted` with different `id` values; an `id=<task id> status=ok` record for each of them later reaches history (keyed on the task id for the reason given under test 35); the run's slice of history carries two distinct `responseId=` values. The scoping to this run's window keeps ids left by test 35 from satisfying the check on their own.
+- Checks: both envelopes are `accepted` with different `id` values; an `id=<task id> status=ok` record for each of them later reaches history (keyed on the task id for the reason given under test 33); the run's slice of history carries two distinct `responseId=` values. The scoping to this run's window keeps ids left by test 33 from satisfying the check on their own.
 
 ### 36. test_delegate_stays_async_under_a_slow_gateway_mock
 
@@ -427,3 +454,54 @@ The delegation path is authenticated by Nginx rather than by the agent, checked 
 - Checks: the stub recorded at least one request whose `Authorization` header matched the token, and no request arrived without that header. Since the agent process never holds the token, a matching header can only have come from the proxy.
 
 The other half of this property - that `OMEGACLAW_OPENCLAW_TOKEN` never reaches the agent process - belongs to `test_credentials_scrubbed_mock.py`, which reads the environment the agent dumps for itself. Do not check it with `dexec`: `docker exec` starts a new process from the container's own configuration, which does carry the token by design, so such a check fails while the scrubbing works correctly.
+
+## Resilience and plugins
+
+All four files below are registered in `Autotests/run_mandatory`, so they block a PR the same way the
+groups above do.
+
+### 41. test_io_policy_skill_mock.py
+
+Exercises the `get-io-policy` skill and cross-checks its answer against the policy file on disk.
+
+- Phase 1 mock answer: `(send "Checking my io policy <run_id>") (get-io-policy)`. Checks: the `send`
+  argument does not swallow the following skill call (parser regression guard).
+- Phase 2 mock answer: `(metta (write-file "/tmp/policy_out.json" (get-io-policy))) (send "Policy checked for <run_id>")`.
+- Checks: the saved file is non-empty and parses as JSON; its `read_only` and `read_write` sets match
+  `profile/policy.yaml` exactly, in both directions - a missing or an extra path fails.
+
+### 42. test_memory_missing_history_file_mock.py
+
+The agent must survive a missing `history.metta` rather than crash on the read/write cycle.
+
+- Setup: `history.metta` is moved aside to `/tmp/history.metta.bak` inside the container.
+- Mock answer: `(send "History tested <run_id>")`.
+- Checks: the agent still answers within 30 s; `history.metta` is recreated. Teardown restores the
+  backup whatever the outcome.
+
+### 43. test_prompt_missing_files_mock.py
+
+Two tests on prompt-file fallback, each moving a file aside and restoring it in teardown.
+
+- `test_missing_default_prompt_mock` - with `memory/prompt.txt` gone, the agent must still answer
+  (empty prompt string rather than a crash). Mock answer: `(send "Prompt tested <run_id>")`.
+- `test_missing_provider_prompt_mock` - with the provider-specific `memory/prompt_Test.txt` gone, the
+  agent must fall back to the default prompt. Mock answer: `(send "Fallback tested <run_id>")`.
+
+### 44. test_workflow_plugin_mock.py
+
+Three tests on the workflow plugin (`plugins/workflow/`), which registers skills from Markdown
+workflows under `plugins/workflow/instructions/<name>/`. The LLM decision is scripted; the skills
+themselves run for real and their output is read off the test comm channel.
+
+- `test_load_and_skill` - `(workflow-load-instructions "test-workflow")`, then
+  `(test-skill "This is a test workflow demonstration")`. Checks: the channel carries
+  `Loaded workflow: test-workflow`, then the demo message - a skill defined in the workflow's
+  `skill.metta` was registered and executed.
+- `test_unload_removes_skill` - load, then `(workflow-unload-instructions)`, then call the
+  workflow-only skill again. Checks: the skill produces no output after the unload. Verified
+  behaviourally, so it does not depend on the unload confirmation message.
+- `test_research_workflow` - load `research-workflow` and run
+  `(research-start "qa-research-autotest" "<topic>")`. Checks: the channel confirms `Created project:`;
+  `memory/workflow_space/research/<name>/topic.txt` holds the topic verbatim; `src/`, `data/`, `runs/`
+  and `figures/` exist under the project.

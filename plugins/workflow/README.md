@@ -62,16 +62,22 @@ send: `Demonstrate workflow plugin`
 
 ## Workflow parameters
 
-Wofkflow plugin OmegaClaw configuration parameters:
+Workflow plugin OmegaClaw configuration parameters:
 - `pluginWorkflowInstructionsDir` - path to the directory which contains
   available workflows. Default value is `<project
   root>/plugins/workflow/instructions`
 - `pluginWorkflowMemoryDir` - path to the directory to keep workflow working
-  files when workflow is active. Default value is `<project
-  root>/memory/workflow_space`
+  files when workflow is active. Default value is
+  `<memoryDirectory>/workflow_space`. `memoryDirectory` itself defaults to `./`
+  and is set to `$MEMORY_DIR` (`<project root>/memory`) inside the Docker image,
+  so the two coincide in Docker and diverge anywhere else.
 
-One can set this parameters passing them as a command line arguments. For
-example:
+These parameters are passed as arguments after the image name, which reach the
+agent as its command line:
 ```sh
-sh run.sh run.metta pluginWorkflowInstructionsDir="<path>"
+docker run ... <image> pluginWorkflowInstructionsDir="<path>"
 ```
+The same value can be given as the environment variable
+`OMEGACLAW_pluginWorkflowInstructionsDir`, or set in `config/config.yaml`.
+`src/config.py` resolves in that order: command line, then environment, then
+config file, then the built-in default.

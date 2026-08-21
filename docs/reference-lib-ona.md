@@ -35,7 +35,7 @@ OmegaClaw's architectural vision lists ONA as a third engine, but in practice ON
 
 What this means concretely:
 
-- The agent has been used to draft shell-callable wrappers and MeTTa-side glue code for ONA-style inference. Some components work in isolation; none are integrated into the default agent loop.
+- The agent has been used to draft shell-callable wrappers and MeTTa-side glue code for ONA-style inference. **None of that work is checked into this repository**, so nothing here can be run, reviewed, or reproduced from a fresh clone. Treat the account below as a report of past experiments rather than as documentation of code you can find.
 - Temporal inference is not meaningfully exposed in the current codebase.
 - There is no native mechanism for belief revision triggered by time — confidence does not automatically decay for stale claims.
 - Real-time feedback loops require careful phase tracking and frequently break due to state-management failures when the agent attempts to orchestrate them end-to-end.

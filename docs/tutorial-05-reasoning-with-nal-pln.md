@@ -50,13 +50,15 @@ Abduction output confidence is bounded at ~0.45. The output correctly tells you 
            ((--> wolf animal) (stv 1.0 0.45))))
 ```
 
-First revision: `(stv 1.0 0.62)`. Revising a third source at `(stv 1.0 0.45)` in:
+First revision: `(stv 1.0 0.621)`. Revising a third source at `(stv 1.0 0.45)` in:
 
 ```
-→ (--> wolf animal) (stv 1.0 0.647)
+→ (--> wolf animal) (stv 1.0 0.711)
 ```
 
-Five independent sources at the same level revise to `(stv 0.848 0.937)` — solidly in ACT territory.
+Five independent sources at the same level revise to `(stv 1.0 0.804)` — solidly in ACT territory.
+
+The frequency stays at 1.0 throughout. Revision returns the evidence-weighted average of the input frequencies, so sources that agree can only raise the confidence.
 
 ### Example 4 — Contradiction detection
 
@@ -69,10 +71,12 @@ Five independent sources at the same level revise to `(stv 0.848 0.937)` — sol
 Output:
 
 ```
-(--> cat dangerous) (stv 0.395 0.875)
+(--> cat dangerous) (stv 0.34 0.833)
 ```
 
-`f = 0.395, c = 0.875` is the engine saying: *"substantial but conflicting evidence."* Do not pick a side — surface the disagreement with both source citations. See [tutorial-08-reliable-reasoning.md](./tutorial-08-reliable-reasoning.md) §8.
+`f = 0.34, c = 0.833` is the engine saying: *"substantial but conflicting evidence."* Do not pick a side — surface the disagreement with both source citations. See [tutorial-08-reliable-reasoning.md](./tutorial-08-reliable-reasoning.md) §8.
+
+The result sits closer to the sceptical source than to the midpoint, because revision weighs each input by `c / (1 − c)`: the source at `c = 0.8` carries weight 4, the one at `c = 0.5` carries weight 1.
 
 ### Example 5 — Implication with variables
 
@@ -90,7 +94,9 @@ Output:
            ((--> poodle           smart)   (stv 1.0  0.9))))
 ```
 
-Conclusion: `(--> golden_retriever smart) (stv 0.25 0.36)`. The low confidence correctly signals *analogical transfer, not direct evidence*.
+Conclusion: `(--> golden_retriever smart) (stv 0.25 0.09)`. The low confidence correctly signals *analogical transfer, not direct evidence*.
+
+`Truth_Analogy` computes `c = c₁ × c₂ × f₂`, where the second premise is the similarity. The similarity's own frequency enters the confidence, so a weak resemblance at `f = 0.25` cuts the result to a quarter of what the two confidences alone would give.
 
 ---
 
@@ -104,7 +110,9 @@ Conclusion: `(--> golden_retriever smart) (stv 0.25 0.36)`. The low confidence c
            ((Inheritance Pingu (IntSet Feathered)) (stv 1.0 0.9))))
 ```
 
-Conclusion: `(Inheritance Pingu Bird)` with a derived `(stv ...)` by the same `f₁ × f₂, f₁ × f₂ × c₁ × c₂` formula as NAL deduction.
+Conclusion: `(Inheritance Pingu Bird) (stv 1.0 0.81)`.
+
+PLN Modus Ponens is close to NAL deduction but not identical: `f = f_P × f_PQ + 0.02 × (1 − f_P)`, `c = (f_P × f_PQ) × (c_P × c_PQ)`. The extra term vanishes here because `f_P = 1.0`, and shows up as soon as the antecedent is uncertain.
 
 ### Example 8 — PLN abduction on inheritance
 
@@ -113,7 +121,9 @@ Conclusion: `(Inheritance Pingu Bird)` with a derived `(stv ...)` by the same `f
            ((Inheritance robin flyer) (stv 1.0 0.9))))
 ```
 
-Conclusion: `(Inheritance robin bird) (stv 0.767 0.422)`. Below ACT — treat as a hypothesis to verify.
+Both premises share their second term, so the rule matches in both premise orderings and the call returns two conclusions — `(Inheritance robin bird)` and `(Inheritance bird robin)` — each at `(stv 1.0 0.448)`.
+
+The confidence is what matters here: two premises at `c = 0.9` collapse to `0.448`, below ACT. Treat the output as a hypothesis to verify, and expect to pick the direction you meant out of a two-element result rather than receiving a single answer.
 
 ---
 
@@ -174,7 +184,7 @@ Starting with each premise at `c = 0.9`:
 
 - [reference-lib-nal.md](./reference-lib-nal.md) — every NAL rule and truth formula.
 - [reference-lib-pln.md](./reference-lib-pln.md) — PLN rule catalogue.
-- [reference-lib-ona.md](./reference-lib-ona.md) — the third (temporal) engine.
+- [reference-lib-ona.md](./reference-lib-ona.md) — the planned temporal engine (experimental, not installed).
 - [reference-skills-reasoning.md](./reference-skills-reasoning.md) — the `metta` skill signature.
 - [tutorial-07-grounded-reasoning.md](./tutorial-07-grounded-reasoning.md) — external grounding.
 - [tutorial-08-reliable-reasoning.md](./tutorial-08-reliable-reasoning.md) — best practices.

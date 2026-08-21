@@ -2,7 +2,9 @@
 
 This section describes how to run the `test_*_slack_mock.py` suite against a local OmegaClaw container that talks to the real Slack Web API. Two Slack bots are used: an "agent" bot, which OmegaClaw runs as inside the container, and a "driver" bot, which the pytest harness uses to post prompts into a shared channel and to read the agent's replies. The LLM is still mocked (`provider="Test"`, deterministic answers from `Autotests/mock/llm.py`); only the message-delivery transport differs from `Autotests/mock/`.
 
-The 26 tests in this directory mirror `Autotests/mock/test_*_mock.py` 1:1: same mock-LLM answers, same prompts, same assertions. They are listed at the end of this document.
+The 24 `test_*_slack_mock.py` tests in this directory mirror `Autotests/mock/test_*_mock.py` 1:1: same mock-LLM answers, same prompts, same assertions. They are listed at the end of this document. A 25th file, `test_slack_unwrap.py`, is a plain unit test of the Slack text unwrapper and needs neither the container nor Slack; it is described separately at the end.
+
+Nothing in this directory runs in CI. No file here appears in `Autotests/run_mandatory` or `Autotests/run_optional`, and the single container CI starts is `-t test`, not `-t slack`. This is a stand suite, run by hand against a real Slack workspace.
 
 ## 1. Prerequisites
 
@@ -165,7 +167,9 @@ source venv/bin/activate
 pytest -s -v mock_slack/test_*_slack_mock.py
 ```
 
-The `LlmMockController` and the `SlackRealDriver` are provided by session-scoped fixtures in `mock_slack/conftest.py`, so both are started once per pytest session. Expected output: `26 passed` (or `25 passed, 1 skipped` if `OMEGACLAW_GIT_TOKEN` is not set).
+The `LlmMockController` and the `SlackRealDriver` are provided by session-scoped fixtures in `mock_slack/conftest.py`, so both are started once per pytest session. Expected output: `24 passed` (or `23 passed, 1 skipped` if `OMEGACLAW_GIT_TOKEN` is not set).
+
+Run this directory on its own. `mock_slack` and `mock_telegram` cannot be collected in the same session: both add their own directory to `sys.path` and import a module named `real_driver` from it, so whichever loads first claims `sys.modules['real_driver']` and the other fails to collect.
 
 ## 7. Tear down
 
@@ -177,7 +181,7 @@ This removes the `omegaclaw` container and the `omegaclaw-memory` volume created
 
 # Tests description
 
-All 26 tests are 1:1 mirrors of the corresponding `Autotests/mock/test_*_mock.py` files. The mock-LLM answer, prompt body, prepared fixtures, and assertions are identical to the comm-channel variants; the only difference is the message-delivery transport. Where the comm-channel variant calls `comm.send_message(prompt)`, the Slack variant calls `sl_send_prompt(sl, prompt)`, which makes the driver bot post `chat.postMessage` into the shared channel. Because the LLM is deterministic, no `try_with_clarification` retries are needed; every test either passes on the first attempt or fails outright.
+All 24 tests are 1:1 mirrors of the corresponding `Autotests/mock/test_*_mock.py` files. The mock-LLM answer, prompt body, prepared fixtures, and assertions are identical to the comm-channel variants; the only difference is the message-delivery transport. Where the comm-channel variant calls `comm.send_message(prompt)`, the Slack variant calls `sl_send_prompt(sl, prompt)`, which makes the driver bot post `chat.postMessage` into the shared channel. Because the LLM is deterministic, no `try_with_clarification` retries are needed; every test either passes on the first attempt or fails outright.
 
 ## Creating files
 
@@ -366,3 +370,27 @@ Four-step pipeline: search NY weather → write `w.txt` with the forecast → wr
 
 - Mock answer: `(write-file "/tmp/wflow/w.txt" "New York tomorrow: clear, high 22 degrees Celsius.") (write-file "/tmp/wflow/p.sh" "#!/bin/bash\ngrep -oE '[0-9]+' /tmp/wflow/w.txt | head -1 > /tmp/wflow/t.txt\n") (shell "chmod +x /tmp/wflow/p.sh") (shell "/tmp/wflow/p.sh")`.
 - Checks: `w.txt` exists; history contains `(write-file ...)` referencing `w.txt`; `p.sh` exists with executable bit; history contains `(write-file ...)` or `(shell ...)` referencing `p.sh`; `t.txt` exists; history contains `(shell ...)` running `p.sh`; `t.txt` content is a number in the range [-60; 120]; content length ≤ 40 characters.
+
+# Unit — `test_slack_unwrap.py`
+
+Ten tests over `_slack_unwrap` in `channels/slack.py`, the function that turns Slack's wire text back
+into plain text: `<http://x|display>` and `<mailto:…|display>` links unwrapped, bare `<http://x>`
+stripped of its brackets, `&amp;` / `&lt;` / `&gt;` decoded, plus the mixed case, an empty display
+label, and the `""` / `None` passthroughs.
+It is a pure function, so this file needs no container, no Slack workspace, and none of the
+`SL_*` variables — its local `sl` / `_sl_authenticate` fixtures shadow the session-scoped ones in
+`conftest.py`.
+
+**Known limitation: the file does not collect, from any directory and in any order.** Its import line
+
+```python
+from channels.slack import _slack_unwrap
+```
+
+resolves against `src/channels.py`, because `pyproject.toml` puts `src` on `pythonpath` and a plain
+module always beats the namespace package `channels/`. Collection ends in
+`ModuleNotFoundError: No module named 'channels.slack'; 'channels' is not a package`, so these ten
+tests have never run. Loading the module by path is the working pattern — see
+`tests/test_channel_auth_gating.py` for `importlib.util.spec_from_file_location`. Once the import is
+fixed, this is the one file in this directory that could join `Autotests/run_mandatory`: no container,
+no external service, no extra dependency.

@@ -1,6 +1,6 @@
 # Reference — I/O Skills
 
-Defined in `src/skills.metta`; the `shell` primitive is backed by `src/skills.pl`, the write skills by `src/fileio.py`.
+Defined in `src/skills.metta`. The `shell` primitive is backed by `src/skills.pl`, the write skills by `src/fileio.py`, and `get-io-policy` by `profile/policy.py`.
 
 ---
 
@@ -12,13 +12,13 @@ Defined in `src/skills.metta`; the `shell` primitive is backed by `src/skills.pl
 ```
 
 ### Purpose
-Execute a shell command and return its standard output.
+Execute a shell command and return its output.
 
 ### Parameters
-- `command` — a string without apostrophes. Apostrophes are rejected by the Prolog helper.
+- `command` — the command line, passed to `sh -c` unchanged. The skill description asks the model to avoid apostrophes, but nothing rejects them: `src/skills.pl` performs no filtering.
 
 ### Returns
-The captured stdout of the command as a string.
+Standard output and standard error, merged — both streams are redirected into the same temporary file, which is read back as one string.
 
 ### Examples
 ```metta
@@ -28,7 +28,9 @@ The captured stdout of the command as a string.
 
 ### Notes / Limits
 - Runs with the permissions of the OmegaClaw process.
-- No sandboxing. Run in a container for anything resembling untrusted use.
+- No sandboxing beyond the container and the Landlock policy. Run in a container for anything resembling untrusted use.
+- **Hard 5-second wall clock.** The command runs under `timeout -k 1s 5s`; if it is killed the skill returns the atom `timeout_error` and no output at all, so a slow command loses whatever it had already printed.
+- The whole remainder of the model's line becomes the command, newlines included. A heredoc therefore survives only as long as none of its lines starts with a known skill name — such a line starts a new command block and cuts the heredoc in half.
 - Prefer writing complex commands to a file and invoking the file rather than embedding quotes-within-quotes.
 
 ---
@@ -148,7 +150,7 @@ read back from disk — or `APPEND-FAILED file=<path>: <error>` (e.g. when the f
 ### Notes / Limits
 - Fails if the file does not exist (the skill checks existence first). Create it with `write-file` first if needed.
 - For files up to 160 bytes the `tail` snippet is empty (`head` plus `sha256` already cover the content); for files over 2 MB the hash is reported as `sha256=skipped(large)`.
-- A trailing newline is always added.
+- A trailing newline is always added. A leading one is added too when the file does not already end with a newline, so the appended text always starts on its own line — expect up to two more bytes than the argument itself.
 
 ---
 
@@ -170,7 +172,8 @@ file when the target path is not known to be allowed.
 ### Parameters
 
 This skill does not take any parameters. It reads the policy file configured
-by the `securityPolicyPath` runtime option.
+by the `securityPolicyPath` runtime option, through `policy.get_allowed_policy_paths`
+in `profile/policy.py`.
 
 ### Returns
 

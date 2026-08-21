@@ -25,8 +25,9 @@ execution loop, managing its own goals and providing auditable proof trails for
 its reasoning.
 
 The primary design criteria for OmegaClaw were simplicity, ease of extension,
-and transparent implementation. This results in a minimalist MeTTa-based core
-of approximately 200 lines of code.
+and transparent implementation. The MeTTa core in [`src/`](/src) is about 400
+significant lines; the Python modules next to it are thin bridges to the LLM
+providers, the communication channels and the embedding store.
 
 ---
 
@@ -57,14 +58,20 @@ python3 -m venv ./.venv
 source ./.venv/bin/activate
 ```
 
-If you have CPU only machine or don't want calculate embeddings on GPU:
-```
-python3 -m pip install --index-url https://download.pytorch.org/whl/cpu torch
-```
-
 Install Python dependencies:
 ```
 python3 -m pip install -r ./repos/OmegaClaw-Core/requirements.txt
+```
+
+On a CPU-only machine, or if you do not want to compute embeddings on GPU, install
+the CPU build of `torch` in the same step so that the pinned version from
+`requirements.txt` is not replaced by the CUDA wheel from PyPI:
+```
+python3 -m pip install \
+    --index-url https://download.pytorch.org/whl/cpu \
+    --extra-index-url https://pypi.org/simple/ \
+    torch==2.12.1 \
+  && python3 -m pip install -r ./repos/OmegaClaw-Core/requirements.txt
 ```
 ---
 
@@ -79,7 +86,7 @@ curl -fsSL https://raw.githubusercontent.com/asi-alliance/OmegaClaw-Core/refs/he
 
 To run a specific version of OmegaClaw set version in `TAG` environment variable and run the following command:
 ```
-export TAG=v0.1.17; curl -fsSL  https://github.com/asi-alliance/OmegaClaw-Core/raw/refs/tags/$TAG/scripts/omegaclaw | bash -s -- singularitynet/omegaclaw:$TAG
+export TAG=v0.1.18; curl -fsSL  https://github.com/asi-alliance/OmegaClaw-Core/raw/refs/tags/$TAG/scripts/omegaclaw | bash -s -- singularitynet/omegaclaw:$TAG
 ```
 
 To stop the OmegaClaw Docker container:
@@ -92,9 +99,31 @@ To restart the OmegaClaw Docker container:
 docker start omegaclaw
 ```
 
-To reset OmegaClaw's memory:
+To reset OmegaClaw's memory, use the `clean` subcommand. It removes the container
+first, because the `omegaclaw-memory` volume cannot be deleted while a container
+still references it:
 ```
-docker volume rm omegaclaw-memory
+./scripts/omegaclaw clean
+```
+
+The script accepts three subcommands — `start`, `stop` and `clean` — and the
+following options for `start`:
+
+| Option | Meaning |
+|---|---|
+| `-t <channel>` | Communication channel: `irc`, `telegram`, `slack`, `websocket`, `test`. |
+| `-p <provider>` | LLM provider, see the [table below](#usage). Defaults to `ASICloud`. |
+| `-d <image>` | Docker image. Defaults to `singularitynet/omegaclaw:latest`. |
+| `-s <secret>` | Channel authentication secret. Defaults to `0000`. |
+| `-g <url>` | OpenClaw execution agent URL; also enables the OpenClaw plugin. |
+
+`start` removes any existing container named `omegaclaw` before creating a new
+one, and always mounts the `omegaclaw-memory` volume. Neither the container name
+nor the volume name is configurable.
+
+To build the image from a source checkout instead of pulling it:
+```
+docker build -t omegaclaw:local .
 ```
 
 ---
@@ -110,6 +139,12 @@ Before running the system you need to choose your LLM API provider and export th
 | `ASIOne` | `ASIONE_API_KEY` |  ASI1 Ultra model via ASI:One inference endpoint (`https://api.asi1.ai/v1`). |
 | `OpenAIAPI` | `OPENAIAPI_API_KEY` |  Use OpenAI API with any endpoint and model. API endpoint and model are set via `openaiapi_url` and `model` command line parameters. |
 | `OpenRouter` | `OPENROUTER_API_KEY` |  GLM model via OpenRouter inference endpoint. |
+| `Test` | none | Mock provider used by the automated tests. Requires `TEST_SERVER_IP` pointing at the test controller on the host; it is not registered without it. |
+
+`Anthropic` is the default in [`config/config.yaml`](/config/config.yaml). The
+`scripts/omegaclaw` wrapper overrides it with `ASICloud` unless `-p` is given.
+Each provider reads its model from its own `*_model` key, and the generic `model`
+key overrides all of them.
 
 Run the system via the following command which ensures the system is started from the root folder of PeTTa:
 ```
@@ -123,10 +158,13 @@ If you are running OmegaClaw without Docker and would like to load it with prese
 
 1. Set EMBEDDING_PROVIDER in your environment. It can be set to either OpenAI or Local. OpenAI embeddings also require OPENAI_API_KEY to be set in your environment.
 
-2. Run:
+2. Run the script from the root folder of PeTTa:
 ```
-  sh ./import_knowledge.sh
+  sh ./repos/OmegaClaw-Core/scripts/import_knowledge.sh
 ```
+   The script writes to `CHROMA_DB_PATH`, which defaults to `/PeTTa/chroma_db`.
+   Set it explicitly if your checkout lives elsewhere.
+
 After the script finishes, your OmegaClaw bot will have the preset knowledge stored in its long-term memory (LTM).
 
 If you want to skip preloading the knowledge then run `export IMPORT_KB_ON_START=0`
@@ -147,6 +185,20 @@ default LLM model one can set an `OMEGACLAW_model` environment variable. The ful
 list of parameters with descriptions and default values can be found in
 [default configuration file](/config/config.yaml).
 
+Two properties of the lookup are worth knowing:
+
+- **Inside the Docker image the environment variable level has no effect.**
+  `entrypoint.sh` restarts the agent through `env -i` with a fixed allowlist, and
+  `OMEGACLAW_DIR` is the only `OMEGACLAW_`-prefixed name on it. In a container,
+  override parameters with command line arguments or with a mounted
+  configuration file.
+- **If the same key appears twice on the command line, the last occurrence wins.**
+  This is how an argument added after the ones supplied by `entrypoint.sh` takes
+  effect.
+
+The first value resolved for a key is cached for the lifetime of the process,
+including the case where the value came from the built-in default.
+
 The configuration file location can be specified manually using `config` option:
 ```sh
 sh run.sh run.metta config=<config.yaml path>
@@ -161,6 +213,56 @@ prefix) to prevent agent accessing them.
 | `TG_BOT_TOKEN` | Telegram bot token. |
 | `MM_BOT_TOKEN` | Mattermost bot token. |
 | `SL_BOT_TOKEN` | Slack bot token (`xoxb-...`). |
+
+### How secrets are kept away from the agent
+
+In the Docker image the separation is enforced, not merely conventional:
+
+1. `entrypoint.sh` starts an nginx instance that holds the keys and tokens. The
+   proxy configuration is generated from
+   [`proxy/nginx.conf.template`](/proxy/nginx.conf.template) by `envsubst`, which
+   substitutes the secrets into a file readable only by the proxy user.
+2. The agent is then started through `env -i` with a small allowlist, so its own
+   process environment contains no keys or tokens at all. This can be confirmed
+   from the host with `/proc/<pid>/environ` of the `swipl` process — the file is
+   not readable from inside the container, not even as root.
+3. The agent reaches the provider APIs through `GATEWAY_URL`, which
+   `entrypoint.sh` passes as a command line argument (an environment variable
+   would not survive `env -i`). The proxy attaches the credentials on the way
+   out.
+
+As a consequence, a Docker-based deployment always routes provider and channel
+traffic through the local proxy. The one component that talks to the network
+directly is the DuckDuckGo web search in `src/websearch.py`, which needs no
+credentials.
+
+---
+
+## Tests
+
+The test suites and the commands that run them are defined in
+[`.github/workflows/autotests.yml`](/.github/workflows/autotests.yml). There are
+four entry points:
+
+```
+./tests/pytest.sh                                 # unit tests, from the repository root
+cd Autotests && pytest -s -v @run_mandatory       # blocking suite
+cd Autotests && pytest -s -v @run_optional        # non-blocking suite
+docker exec -e PETTA_PATH=/PeTTa omegaclaw \
+    /PeTTa/repos/OmegaClaw-Core/tests/mettatest.sh
+```
+
+The `Autotests` suites drive a running container, so start one first. CI uses a
+single container created with `-p Test -t test -g <openclaw-url>` and installs
+`pytest` as the only additional dependency. Two details are easy to miss:
+
+- `@run_mandatory` and `@run_optional` are plain lists of test files. A file
+  added under `Autotests/` but not listed in one of them is never collected.
+- Without `-g`, the OpenClaw delegation tests skip themselves and the suite still
+  reports success, so the run covers less than it appears to.
+
+`mettatest.sh` requires `PETTA_PATH` and an absolute path, because the working
+directory inside the container is `/PeTTa` rather than the repository root.
 
 ---
 

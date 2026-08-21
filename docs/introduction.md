@@ -2,7 +2,7 @@
 
 OmegaClaw is a **hybrid agentic AI framework** implemented in MeTTa on OpenCog Hyperon. A large language model (LLM) works together with formal logic engines — **NAL** and **PLN** — to reason about the world, track uncertainty, combine evidence, and produce conclusions that are mathematically grounded rather than just plausible-sounding.
 
-The core agent loop is approximately **200 lines of MeTTa**.
+The MeTTa core in `src/` is about **400 significant lines**, of which the agent loop itself is the smallest part.
 
 > Most AI assistants generate answers that sound right. OmegaClaw-hosted agents generate answers that come with a **mathematical receipt** showing exactly how confident each conclusion is and what evidence supports it. When the agent says it is 72% confident, that number comes from formal inference — not a feeling.
 
@@ -17,8 +17,8 @@ This page is the conceptual introduction: what OmegaClaw is, why the hybrid arch
   - **NAL** — Non-Axiomatic Logic, symbolic inference under uncertainty.
   - **PLN** — Probabilistic Logic Networks, probabilistic higher-order reasoning.
   - ONA (OpenNARS for Applications) is a planned third engine but is **not installed by default** — see [reference-lib-ona.md](./reference-lib-ona.md) for the current experimental status.
-- Maintains a **three-tier memory** architecture (working, long-term, AtomSpace — described below).
-- Exposes an extensible **skill system** covering memory, shell and file I/O, communication channels, web search, remote agents, and formal reasoning.
+- Maintains a **two-tier memory** architecture (episodic history and long-term embedding memory — described below), on top of the AtomSpace that the MeTTa runtime itself provides.
+- Exposes an extensible **skill system** covering memory, shell and file I/O, communication channels, web search, and formal reasoning. Channels, LLM providers and additional skills are loaded as plugins listed in [`config/plugins.yaml`](/config/plugins.yaml).
 
 ---
 
@@ -99,10 +99,9 @@ A thin MeTTa core drives the two formal reasoning engines and a handful of Pytho
        ┌────────────┴────────────┐
        ▼                         ▼
 ┌────────────────┐     ┌──────────────────┐
-│ Memory 3-tier  │     │ Shell / Files /  │
-│ - pin  (ST)    │     │ Channels / Web   │
+│ Memory         │     │ Shell / Files /  │
+│ - history      │     │ Channels / Web   │
 │ - remember LT  │     │                  │
-│ - AtomSpace    │     │                  │
 └────────────────┘     └──────────────────┘
 ```
 
@@ -116,20 +115,47 @@ lib_omegaclaw.metta       loads all submodules
 ├── src/loop.metta        agentic loop, turn structure
 ├── src/memory.metta      long-term memory + history
 ├── src/skills.metta      callable skill surface
-├── src/channels.metta    receive/send dispatch
+├── src/channels.metta    send/receive wrappers, outgoing de-duplication
 ├── src/utils.metta       utility, string ops, time
 ├── src/config.metta      configure
-├── src/helper.py         parenthesis balancing, normalization
+├── src/plugin.metta      MeTTa side of the plugin loader
+├── src/helper.py         response parsing, LLM_COMMANDS, normalization
+├── src/config.py         parameter resolution
+├── src/plugin.py         plugin loader
+├── src/channels.py       channel registry
+├── src/providers.py      LLM provider registry
+├── src/fileio.py         file skills
+├── src/rag.py            embeddings and ChromaDB access
+├── src/logger.py         logging
 ├── src/skills.pl         Prolog helpers (shell, first_char)
 ├── src/websearch.py      web search
 ├── lib_nal.metta         NAL truth functions
-├── lib_pln.metta         PLN rules
-└── lib_llm_ext.py        Claude / GPT / MiniMax / local embeddings
+└── lib_pln.metta         PLN rules
+
+config/plugins.yaml       the list of plugins loaded at startup
+config/config.yaml        default values for every runtime parameter
 
 channels/irc.py           IRC adapter
 channels/telegram.py      Telegram adapter
 channels/slack.py         Slack adapter
 channels/mattermost.py    Mattermost adapter
+channels/wschat.py        WebSocket adapter
+channels/mockchannel.py   in-process adapter used by the tests (`test`)
+channels/auth.py          channel ownership check
+channels/delivery_queue.py  messages produced before the channel is up
+
+providers/lib_llm_ext.py  shared provider base, proxy routing
+providers/openaiapi.py    Anthropic, ASICloud and OpenAIAPI
+providers/openai.py       OpenAI
+providers/openrouter.py   OpenRouter
+providers/asione.py       ASI:One
+providers/mockprovider.py mock provider used by the tests (`Test`)
+
+plugins/workflow/         multi-step workflow skills
+plugins/openclaw/         delegation to an OpenClaw execution agent
+
+proxy/nginx.conf.template outbound proxy that holds the API keys
+entrypoint.sh             starts the proxy, scrubs the environment, drops privileges
 
 memory/prompt.txt         system prompt (agent identity + values)
 memory/history.metta      episodic trace (written at runtime)
@@ -145,7 +171,7 @@ Each iteration of `(omegaclaw $k)` in `src/loop.metta` performs:
 │ 2. getContext()     PROMPT + SKILLS +                       │
 │                     LAST_SKILL_USE_RESULTS +                │
 │                     HISTORY + TIME                          │
-│ 3. LLM call         Anthropic / OpenAI / ASICloud / ASI:One │
+│ 3. LLM call         whichever provider `provider` selects   │
 │ 4. sread / balance  parse response into skill s-exprs       │
 │ 5. eval each skill  (remember ...), (metta ...), ...        │
 │ 6. addToHistory     append human msg + response +           │
@@ -191,7 +217,7 @@ user message
 
 For a **grounded** write with provenance, the pattern is the same, but the LLM first queries memory, then fetches from a verified source before calling `remember`. See [tutorial-07-grounded-reasoning.md](./tutorial-07-grounded-reasoning.md).
 
-### Three-tier memory interaction
+### Memory tiers in a reasoning turn
 
 A reasoning-heavy turn typically uses all three memory tiers:
 
@@ -199,7 +225,7 @@ A reasoning-heavy turn typically uses all three memory tiers:
 1. query long-term memory for relevant past findings
         │
         ▼
-2. atomize relevant knowledge into AtomSpace
+2. atomize the relevant knowledge into premises
         │
         ▼
 3. reason over atoms via (metta (|- ...)) or (|~ ...)
@@ -213,7 +239,7 @@ A reasoning-heavy turn typically uses all three memory tiers:
 
 ### Configuration
 
-Runtime parameters are declared as `(empty)` at module top and filled by `configure` calls during `initLoop`, `initMemory`, and `initChannels`. Command-line overrides are accepted via the `argk` helper in `src/utils.metta`. Full list in [reference-configuration.md](./reference-configuration.md).
+Runtime parameters are declared as `(empty)` at module top and filled by `configure` calls during `initLoop`, `initMemory`, and `initChannels`. `configure` is defined in `src/config.metta` and resolves each key through `src/config.py`, which consults, in order, the command line, an `OMEGACLAW_<key>` environment variable, `config/config.yaml`, and the built-in default. Full list in [reference-configuration.md](./reference-configuration.md).
 
 ---
 
@@ -268,23 +294,36 @@ Maps an `(f, c)` pair to a single value in `[0, 1]`, useful for priority queues 
 
 Dedicated pages: [reference-lib-nal.md](./reference-lib-nal.md), [reference-lib-pln.md](./reference-lib-pln.md), [reference-lib-ona.md](./reference-lib-ona.md) (experimental, not installed).
 
-### Three-tier memory
+### Memory tiers
 
-Three distinct stores with different semantics:
+Two stores persist state, and the AtomSpace sits behind them as the runtime substrate:
 
-1. **Working memory (`pin`)** — volatile single-slot scratchpad. Overwritten each cycle.
-2. **Long-term embedding memory (`remember` / `query`)** — persistent semantic recall. Survives restarts.
-3. **AtomSpace** — atomized, truth-valued knowledge used by NAL and PLN.
+1. **Episodic history (`history.metta`)** — an append-only trace of the messages and
+   responses of each turn, replayed into the prompt up to `maxHistory`. This is also where
+   `pin` becomes visible: `pin` itself does not write anywhere, it returns a success atom,
+   and the pinned text reaches the next turn only because the whole response is appended to
+   the history.
+2. **Long-term embedding memory (`remember` / `query`)** — persistent semantic recall backed
+   by ChromaDB. Survives restarts, and is not written automatically: an item enters it only
+   through an explicit `remember`.
+3. **AtomSpace** — the knowledge substrate of the MeTTa runtime, reachable from the agent
+   through the `metta` skill. OmegaClaw does not keep a belief store in it: `|-` and `|~`
+   take their premises as call arguments, so atomized knowledge lives only for the duration
+   of the call unless the agent writes it somewhere itself.
 
 Full detail in [reference-internals-memory-store.md](./reference-internals-memory-store.md).
 
 ### Skills
 
-The set of callable operations available to the agent at each turn — plain MeTTa s-expressions like `(remember "...")`, `(shell "ls")`, `(metta (|- ...))`. Defined in `src/skills.metta` and `src/memory.metta`.
+The set of callable operations available to the agent at each turn — plain MeTTa s-expressions like `(remember "...")`, `(shell "ls")`, `(metta (|- ...))`. Defined in `src/skills.metta` and `src/memory.metta`, and advertised to the model by `getStaticSkills`.
+
+Being defined is not sufficient for a skill to be callable. The response parser decides where one command ends and the next begins by looking up the first token of a line in the `LLM_COMMANDS` set in `src/helper.py`. A name that is missing from that set is not recognised as the start of a command, so the line is absorbed into the argument of the command above it. Skills registered at runtime through `add-skill` add themselves to the set; built-in skills are listed there statically.
 
 ### Channels
 
-Abstract communication endpoints. `(send ...)` and `(receive)` delegate to the active channel adapter (IRC, Telegram, Slack, Mattermost, or WebSocket). See [reference-channels.md](./reference-channels.md).
+Abstract communication endpoints. `(send ...)` and `(receive)` delegate to the active channel adapter (IRC, Telegram, Slack, Mattermost, WebSocket, or the in-process `test` channel used by the automated tests). See [reference-channels.md](./reference-channels.md).
+
+`(send ...)` drops a message whose text is identical to the previous one it sent, so an agent can produce a correct answer that never reaches the channel.
 
 ### Orchestration
 
@@ -304,7 +343,7 @@ Full context in [reference-orchestration.md](./reference-orchestration.md).
 
 ### The defense stack
 
-Four layers applied to every piece of incoming evidence to resist noise and adversarial input:
+Four layers the agent is asked to apply to incoming evidence in order to resist noise and adversarial input. They are policy rather than machinery: nothing in the runtime enforces them, and the fourth has no test suite behind it. See [reference-orchestration.md](./reference-orchestration.md) for what is and is not implemented.
 
 1. **Novelty modulation** — new claims enter with `c × (1 − novelty)`.
 2. **Action thresholds** — the tiers above.
@@ -339,7 +378,7 @@ The failure mode where a flawed premise is run through the formal engine and eme
 - a small, auditable agent that can explain **why** it reached a conclusion;
 - reasoning with explicit uncertainty (`stv frequency confidence`) rather than opaque probabilities;
 - a platform for experimenting with NAL and PLN inside an agent loop;
-- a chat-facing agent over IRC, Telegram, Mattermost, or a channel you add yourself.
+- a chat-facing agent over IRC, Telegram, Slack, Mattermost, WebSocket, or a channel you add yourself.
 
 ### Honest limits
 
@@ -347,7 +386,7 @@ The hybrid design moves the failure mode — it does not eliminate it. Known iss
 
 - LLM premise formulation errors (up to ~16.6% on asymmetric relations).
 - LLM confidence overestimation (~15 percentage points on self-assigned truth values).
-- Confidence decays ~10% per inference hop; by the third hop, `c` typically drops below 0.5.
+- Confidence decays through deduction chains. `Truth_Deduction` multiplies the confidences of both premises (and, for non-certain premises, their frequencies too), so a chain of certain premises at `(stv 1.0 0.9)` yields `c` = 0.81, 0.73, 0.66, 0.59, 0.53 over successive hops and first falls below 0.5 on the sixth. Chains over uncertain premises decay considerably faster, because the frequency product enters the confidence as well.
 
 **Garbage In, Garbage Out** applies with a twist: the formal engine does not merely pass through garbage, it **amplifies** it by lending mathematical authority to conclusions derived from flawed premises.
 
@@ -360,5 +399,5 @@ The mitigations (external grounding, revision, action thresholds, the defense st
 - [tutorial-01-teaching-memories.md](./tutorial-01-teaching-memories.md) — hands-on first session.
 - [reference-orchestration.md](./reference-orchestration.md) — engine selection, stopping criteria, action thresholds, defense stack.
 - [reference-internals-loop.md](./reference-internals-loop.md) — turn structure in detail.
-- [reference-internals-memory-store.md](./reference-internals-memory-store.md) — the three memory tiers.
+- [reference-internals-memory-store.md](./reference-internals-memory-store.md) — the memory tiers in detail.
 - [reference-internals-extension-points.md](./reference-internals-extension-points.md) — where to plug in new behavior.

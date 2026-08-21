@@ -74,9 +74,10 @@ This directory has two tiers:
   `test_rpc.py`; registered in `Autotests/run_mandatory`.
 - `test_*_ws_mock.py` — end-to-end integration tests that drive a `-t websocket`
   container through `WsMockDriver`. They need the container started as in step 3
-  and the `websockets` library on the host. Not in `run_mandatory` (a single CI
-  container runs one commchannel; these need `-t websocket`, not the `-t test`
-  used by `run_mandatory`).
+  and the `websockets` library on the host. In neither `run_mandatory` nor
+  `run_optional`, so they never run in CI (a single CI container runs one
+  commchannel; these need `-t websocket`, not the `-t test` used by
+  `run_mandatory`, and `websockets` is not installed on the runner).
 
 Unit tests (no container required):
 
@@ -128,9 +129,10 @@ on every PR in the same job as `test_comm` / `test_llm` / `test_rpc`.
 
 End-to-end tests through `WsMockDriver`. They prove the full wiring
 (`channels.metta` websocket dispatch, `send` skill → `agent_message`, real drain
-→ LLM) that the unit tests cannot reach. Not in `run_mandatory` (they need a
-`-t websocket` container, unlike the `-t test` container `run_mandatory` runs
-against); run them on the stand or a dedicated CI stage.
+→ LLM) that the unit tests cannot reach. In neither `run_mandatory` nor
+`run_optional` (they need a `-t websocket` container, unlike the `-t test`
+container `run_mandatory` runs against); run them on the stand or a dedicated
+CI stage.
 
 ### 1. test_ws_delivery_ws_mock.py
 

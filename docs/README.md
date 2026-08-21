@@ -1,10 +1,14 @@
 # OmegaClaw Documentation
 
-This directory contains the full documentation for OmegaClaw. Every page is a sibling file — no subdirectories. Filename prefixes identify the section:
+This directory contains the full documentation for OmegaClaw. Every page is a sibling file — no subdirectories. Filenames identify the section:
 
-- `intro-*` — conceptual introduction
+- `introduction.md` — conceptual introduction
 - `tutorial-NN-*` — numbered, task-oriented walkthroughs
 - `reference-*` — API, engines, orchestration, failure modes, and internals
+
+Tutorial numbers are stable once assigned, so the sequence has a gap: number 06
+belonged to the Agentverse remote-skill walkthrough, which was removed together
+with the Agentverse integration itself.
 
 If you are new, read the Introduction in order, then pick tutorials that match what you want to build, and dip into the reference when you need details.
 
@@ -55,8 +59,8 @@ User-facing MeTTa skills the agent invokes. Each page follows the template **Sig
 ### Configuration & Adapters
 
 - [reference-configuration.md](./reference-configuration.md) — `configure` form and all runtime parameters
-- [reference-channels.md](./reference-channels.md) — IRC, Telegram, Slack, Mattermost, WebSocket, and websearch adapters plus the channel contract
-- [reference-python-bridges.md](./reference-python-bridges.md) — `lib_llm_ext.py`, `src/helper.py`, `src/skills.pl`
+- [reference-channels.md](./reference-channels.md) — IRC, Telegram, Slack, Mattermost, WebSocket and the `test` channel, plus the channel contract
+- [reference-python-bridges.md](./reference-python-bridges.md) — `providers/lib_llm_ext.py`, `src/helper.py`, `src/skills.pl`
 
 ### Internals
 
@@ -64,3 +68,15 @@ User-facing MeTTa skills the agent invokes. Each page follows the template **Sig
 - [reference-internals-memory-store.md](./reference-internals-memory-store.md) — The three-tier memory architecture, including `knowledge-priors` markdown seeding into ChromaDB
 - [reference-internals-skill-dispatch.md](./reference-internals-skill-dispatch.md) — How `(skill args)` calls resolve
 - [reference-internals-extension-points.md](./reference-internals-extension-points.md) — Where to hook in new skills, tools, channels, LLMs, engines
+
+Channels, LLM providers and MeTTa extensions are all loaded as plugins listed in
+[`config/plugins.yaml`](/config/plugins.yaml); the extension-points page covers
+the loader and the registration callbacks. The plugins shipped with the core
+have their own pages: [`plugins/workflow`](/plugins/workflow/README.md) and
+[`plugins/openclaw`](/plugins/openclaw/README.md).
+
+### Deployment
+
+Installation, the Docker wrapper script, configuration precedence, the test
+entry points and the proxy that keeps API keys out of the agent's environment
+are described in the [top-level README](/README.md).

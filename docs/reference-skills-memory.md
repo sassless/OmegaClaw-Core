@@ -1,8 +1,8 @@
 # Reference — Memory Skills
 
-Defined in `src/memory.metta` and catalogued in `src/skills.metta`.
+`remember`, `query` and `episodes` are defined in `src/memory.metta`; `pin` is defined in `src/skills.metta`. All four are catalogued in `getStaticSkills` (`src/skills.metta`) and allowlisted in `STATIC_LLM_COMMANDS` (`src/helper.py`).
 
-All four skills accept quoted string arguments. Variables are not permitted in LLM-generated calls.
+The prompt asks the model to emit bare `skill arg` lines; the response parser quotes each argument before the call is evaluated. Variables are not permitted in LLM-generated calls, but nothing enforces that — it is an instruction in the prompt.
 
 ---
 
@@ -14,13 +14,13 @@ All four skills accept quoted string arguments. Variables are not permitted in L
 ```
 
 ### Purpose
-Store a string in long-term embedding memory as the triplet `(timestamp, atom, embedding)`.
+Store a string in long-term embedding memory together with its embedding vector and a timestamp.
 
 ### Parameters
 - `string` — the text to remember. Use short, self-contained phrases for best recall.
 
 ### Returns
-The result of the ChromaDB write (internally). The agent treats a successful call as an effectful step.
+The constant `REMEMBER-SUCCESS`. The ChromaDB return value is discarded, so a failed write looks exactly like a successful one — treat the result as "the call was made", not "the write landed".
 
 ### Examples
 ```metta
@@ -29,7 +29,7 @@ The result of the ChromaDB write (internally). The agent treats a successful cal
 ```
 
 ### Notes / Limits
-- Text is passed through `string-safe` before embedding, which escapes newlines, quotes, and apostrophes.
+- The text is stored **unmodified**. `string-safe` is applied only to the copy handed to `embed`, where it swaps doubled quotes, newlines and apostrophes for the `_quote_` / `_newline_` / `_apostrophe_` placeholders.
 - Embedding provider is selected by `embeddingprovider` (`Local` or `OpenAI`).
 - Nothing deduplicates automatically — repeated `remember` calls store multiple items.
 
@@ -71,13 +71,13 @@ A list-shaped result containing the nearest memory items.
 ```
 
 ### Purpose
-Return `maxEpisodeRecallLines` lines of the episodic trace centered on the given timestamp.
+Return the lines of the episodic trace around the given timestamp: the line whose timestamp is closest to it, plus `maxEpisodeRecallLines` lines on each side, each prefixed with its line number.
 
 ### Parameters
 - `timestamp` — must match the format produced by `get_time_as_string`.
 
 ### Returns
-A block of lines from `memory/history.metta`.
+A block of numbered lines from `memory/history.metta`.
 
 ### Examples
 ```metta
@@ -85,7 +85,7 @@ A block of lines from `memory/history.metta`.
 ```
 
 ### Notes / Limits
-- Implemented by `helper.around_time`.
+- Implemented by `helper.around_time`, which opens the **hardcoded** path `repos/OmegaClaw-Core/memory/history.metta` relative to the process working directory. It ignores `memoryDirectory`, so outside the expected layout the call fails to find the trace.
 - Useful for answering questions like "what was I doing around X?"
 
 ---
@@ -98,13 +98,13 @@ A block of lines from `memory/history.metta`.
 ```
 
 ### Purpose
-Append a working-memory note to the episodic trace so the next turn can see it in `HISTORY`.
+Mark a working-memory note so it shows up again on the next turn.
 
 ### Parameters
 - `string` — the note. Typical uses: intermediate results, plans for the next turn, checklists.
 
 ### Returns
-Success / failure of the append.
+The constant `PIN-SUCCESS`. `(= (pin $x) PIN-SUCCESS)` is the whole definition — the skill stores nothing and cannot fail.
 
 ### Examples
 ```metta
@@ -113,5 +113,6 @@ Success / failure of the append.
 ```
 
 ### Notes / Limits
-- `pin` is not semantically indexed — it only influences the next few turns through the rolling `HISTORY` window (`maxHistory` characters).
-- For anything you want to recall days later, use `remember` instead.
+- The note reaches the next prompt only because the loop echoes the whole response verbatim: once through `LAST_SKILL_USE_RESULTS`, which lasts a single turn, and once through `memory/history.metta`, which the prompt reads back as the trailing `maxHistory` characters of `HISTORY`.
+- `pin` is not semantically indexed. For anything you want to recall days later, use `remember` instead.
+- A model response that opens with `-` is rewritten into `pin` by the response parser, so bullet-point commentary arrives as a pin.

@@ -10,16 +10,20 @@ Treat this as a checklist you apply to any reasoning task that matters.
 
 **Rule:** 2–3 inference hops per chain. Insert revision (see §3) to go further.
 
-**Why:** deduction confidence is `c_out = f₁ × f₂ × c₁ × c₂`. There is no threshold effect, no floor. Confidence drops roughly 10% per hop. Starting at `c = 0.9`:
+**Why:** deduction confidence is `c_out = f₁ × f₂ × c₁ × c₂`. There is no threshold effect, no floor.
 
-| Hop | Confidence |
-|---|---|
-| 1 | 0.81 |
-| 2 | 0.73 |
-| 3 | below 0.5 |
-| 4 | ~0.25 |
+The frequencies sit inside the confidence term, so the decay rate depends on how certain the premises are. With certain premises (`f = 1.0`) at `c = 0.9`, each hop multiplies confidence by 0.9:
 
-A 4-hop chain bottoms out below the IGNORE threshold — the conclusion is unreliable regardless of how confident the LLM sounds.
+| Hop | Confidence, `f = 1.0` | Confidence, `f = 0.9` |
+|---|---|---|
+| 1 | 0.81 | 0.656 |
+| 2 | 0.73 | 0.478 |
+| 3 | 0.66 | 0.349 |
+| 4 | 0.59 | 0.254 |
+| 5 | 0.53 | 0.185 |
+| 6 | 0.48 | 0.135 |
+
+Read the right-hand column before assuming you have room for four hops. Certain premises stay above the ACT threshold of `c = 0.5` until the sixth hop, but a single premise at `f = 0.9` drops below it on the second. Since the LLM assigns those frequencies itself, and does so optimistically, the left-hand column is the best case rather than the expected one.
 
 ## 2. Ground premises externally
 
@@ -43,14 +47,16 @@ f_out = weighted average of f_i by w_i
 **Example — three independent sources each at `(stv 1.0 0.45)`:**
 
 ```
-→ revised:  (stv 1.0 0.647)
+→ revised:  (stv 1.0 0.711)
 ```
 
 **Five sources:**
 
 ```
-→ revised:  (stv 0.848 0.937)
+→ revised:  (stv 1.0 0.804)
 ```
+
+The frequency stays at 1.0 in both cases. Revision returns a weighted average of the input frequencies, so agreeing sources cannot move it — only the confidence climbs.
 
 Two sources that disagree also revise — the output `f` drifts toward the middle, but `c` grows. Contradiction becomes a first-class signal, not a silent failure.
 
@@ -104,10 +110,12 @@ Example — cat dangerousness with conflicting sources:
 ```
 (--> cat dangerous) (stv 0.2 0.8)   ; most cats not dangerous
 (--> cat dangerous) (stv 0.9 0.5)   ; claim: dangerous
-revision → (stv 0.395 0.875)
+revision → (stv 0.34 0.833)
 ```
 
-The revised `f = 0.395` with `c = 0.875` is the math saying: *"substantial but conflicting evidence."* Surface that to the user with both source citations; don't pick a winner arbitrarily.
+The revised `f = 0.34` with `c = 0.833` is the math saying: *"substantial but conflicting evidence."* Surface that to the user with both source citations; don't pick a winner arbitrarily.
+
+Note which way the frequency moved. The sceptical source carried `c = 0.8` against the claim's `c = 0.5`, and revision weights by `c / (1 − c)`, so it contributed four times the evidence and pulled the result toward its own frequency rather than to the midpoint.
 
 ## 9. Cache and reuse verified premises
 

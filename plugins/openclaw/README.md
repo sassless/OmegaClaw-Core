@@ -78,10 +78,18 @@ process hold the Gateway token. `OMEGACLAW_OPENCLAW_TOKEN` must still be
 passed through the environment, never through config files:
 
 ```bash
-docker run ... -e OMEGACLAW_OPENCLAW_TOKEN="<token>" openclaw_url="<gateway URL>" ...
+docker run ... -e OMEGACLAW_OPENCLAW_TOKEN="<token>" <image> \
+  openclaw_url="<gateway URL>" openClawEnabled=enabled openClawURL="<gateway URL>"
 ```
 
-(with `scripts/omegaclaw`: `OMEGACLAW_OPENCLAW_TOKEN=<token> ./scripts/omegaclaw start -g "<gateway URL>" ...`)
+All three arguments are needed. `openclaw_url=` is read by `entrypoint.sh` and only points Nginx at
+the Gateway; the plugin itself reads `openClawEnabled`, which defaults to `disabled`, and with it
+disabled no skill and no heartbeat listener is registered - the proxy would be configured and the
+agent would have nothing to delegate with, the "No `OPENCLAW_RESULT` ever appears" symptom in the
+troubleshooting table below.
+
+`scripts/omegaclaw` passes all three from a single `-g`:
+`OMEGACLAW_OPENCLAW_TOKEN=<token> ./scripts/omegaclaw start -g "<gateway URL>" ...`
 
 but the local Nginx proxy (`proxy/nginx.conf.template`, `location /openclaw/`)
 reads it *before* the agent's environment is scrubbed (see `entrypoint.sh`)
@@ -99,6 +107,7 @@ same Gateway for that case to keep working.
 | OmegaClaw runs | Gateway runs | Use |
 | --- | --- | --- |
 | in Docker | on the host | `http://172.17.0.1:18789` (the `docker0` bridge address) |
+| in Docker via `scripts/omegaclaw` | on the host | `http://host.docker.internal:18789` - the script passes `--add-host=host.docker.internal:host-gateway`, and this is the form CI uses |
 | in Docker | in Docker, same user-defined network | `http://<gateway-container>:18789` |
 | on the host | on the host | `http://127.0.0.1:18789` |
 | anywhere | on another machine | `https://openclaw.example.com` or `http://10.0.0.5:18789` |

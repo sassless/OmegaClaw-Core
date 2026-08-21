@@ -73,7 +73,9 @@ Revision produces a frequency that encodes the disagreement (drifts toward the m
 
 ## 5. The defense stack (four layers)
 
-OmegaClaw assembles these layers to resist noisy or adversarial input:
+These four layers are the intended defence against noisy or adversarial input.
+
+**None of them is enforced by the runtime.** There is no novelty term, no threshold gate, no attention queue and no step limit anywhere in `src/` or in the reasoning libraries; the tiers named below appear in this documentation and in the system prompt, not in code. Treat the stack as a policy the model is asked to follow and that you are responsible for checking, in the same way as the halt conditions in §2 — not as a mechanism that will stop a bad premise on its own.
 
 ### Layer 1 — Novelty modulation
 New claims are discounted by their novelty:
@@ -91,7 +93,9 @@ The ACT / HYPOTHESIZE / IGNORE gates above prevent low-evidence claims from reac
 A priority queue ranked by NAL expectation (`exp = c × (f - 0.5) + 0.5`) with hard step limits per cycle. Spend attention on the most promising inferences first.
 
 ### Layer 4 — Adversarial premise testing
-Regression suite: confident lies, direct contradictions, and gradual poisoning are injected into the pipeline. The stack has been validated to downgrade adversarial inputs in all tested cases.
+The intended shape is a regression suite that injects confident lies, direct contradictions and gradual poisoning into the pipeline and asserts that the stack downgrades them.
+
+**No such suite exists in this repository.** The only automated test that exercises the reasoning surface is `Autotests/mock/test_transition_metta_to_remember_mock.py`, and it asserts that a `(metta ...)` call is dispatched and its conclusion remembered — its premises share no term, so no inference rule fires. Any claim about validated adversarial behaviour has to be re-established before it can be relied on.
 
 ---
 

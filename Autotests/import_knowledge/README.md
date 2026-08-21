@@ -21,17 +21,30 @@ Unit:
 
 ```
 cd Autotests
-pytest -s import_knowledge/test_import_knowledge.py
+pytest -s import_knowledge/test_import_knowledge.py     # expect: 15 passed
 ```
+
+Ten cases, 15 tests: `test_provider_case_insensitive` is parametrized over six spellings.
 
 Integration (point `OMEGACLAW_KB_IMAGE` at the image built above):
 
 ```
 cd Autotests
-OMEGACLAW_KB_IMAGE=omegaclaw:kb-test pytest -s import_knowledge/test_import_knowledge_integration.py
+OMEGACLAW_KB_IMAGE=omegaclaw:kb-test pytest -s import_knowledge/test_import_knowledge_integration.py    # expect: 3 passed
 ```
 
 The integration tests start and remove the container themselves through `scripts/omegaclaw` (fixed name `omegaclaw`, one at a time), so there is no manual `docker run` step. They are skipped unless `OMEGACLAW_KB_IMAGE` is set and Docker and `scripts/omegaclaw` are available.
+
+## What runs in CI
+
+Neither file does. Neither one is listed in `Autotests/run_mandatory` or `Autotests/run_optional`,
+and a test file that appears in neither list never runs, whatever the diff says.
+
+The unit file could be added as it stands: it needs only `bash` and the stub on `PATH`, no container
+and no extra dependency. The integration file could not. It starts and removes a container under the
+fixed name `omegaclaw`, and in CI that is the container the whole of `run_mandatory` runs against, so
+the two would kill each other inside one job. CI also starts with `IMPORT_KB_ON_START=0`
+(`.github/workflows/autotests.yml`), which turns the boot-time import off for every other suite.
 
 # Tests description
 
