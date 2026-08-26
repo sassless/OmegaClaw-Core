@@ -34,14 +34,33 @@ _collection = None
 
 
 def _get_collection():
+    """The store the agent already has open, or our own as a fallback.
+
+    Indexing rewrites the HNSW segments of the same collection the agent
+    reads through lib_chromadb. A second PersistentClient over that path
+    keeps its own view of those segments, so once indexing has replaced
+    them every read fails with "Error creating hnsw segment reader:
+    Nothing found on disk", and it keeps failing until the process is
+    restarted. Sharing the one client keeps both sides on the same view.
+
+    lib_chromadb is not importable from the standalone import-knowledge
+    run, which has no reader to collide with, so that case opens its own.
+    """
     global _client, _collection
     if _collection is None:
-        os.makedirs(DB_PATH, exist_ok=True)
-        _client = chromadb.PersistentClient(path=DB_PATH)
-        _collection = _client.get_or_create_collection(
-            name=COLLECTION_NAME,
-            embedding_function=None,
-        )
+        try:
+            import lib_chromadb
+
+            _collection = lib_chromadb.COLLECTION
+            logger.info("Using the shared lib_chromadb collection")
+        except ImportError:
+            os.makedirs(DB_PATH, exist_ok=True)
+            _client = chromadb.PersistentClient(path=DB_PATH)
+            _collection = _client.get_or_create_collection(
+                name=COLLECTION_NAME,
+                embedding_function=None,
+            )
+            logger.info(f"lib_chromadb unavailable, opened {DB_PATH} directly")
     return _collection
 
 
