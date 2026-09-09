@@ -5,7 +5,8 @@
 (= (initChannels)
    (progn (log INFO "channels" "Initializing channels")
           (configure commchannel irc)
-          (commChannelStart (commchannel))))
+          (commChannelStart (commchannel))
+          (send "Welcome to Omega Cloud! I'm your Omega agent, delighted to assist you. To get started, simply type a message in the chat – I'm all yours!")))
 
 (= (commChannelStart $commchannel)
    (py-call (channels.commChannelStart $commchannel)))
