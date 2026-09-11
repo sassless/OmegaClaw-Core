@@ -33,14 +33,8 @@
          (read_file_tail $history_file (maxHistory))
          "")))
 
-(= (addToHistory $lastmessage $response $sexpr $msgnew)
-   (if $msgnew
-       (if (== (get-state &error) ())
-           (appendToHistory ((get_time_as_string) (newline) "HUMAN_MESSAGE: " $lastmessage (newline) $response (newline)))
-           (appendToHistory ((get_time_as_string) (newline) "HUMAN_MESSAGE: " $lastmessage (newline) $response (newline) ERROR_FEEDBACK: (get-state &error))))
-       (if (== (get-state &error) ())
-           (appendToHistory ((get_time_as_string) (newline) $response (newline)))
-           (appendToHistory ((get_time_as_string) (newline) $response (newline) ERROR_FEEDBACK: (get-state &error))))))
+(= (addToHistory $content)
+   (appendToHistory (py-str ("(\"" (get_time_as_string) "\" " $content ")" (newline)))))
 
 (= (embed $str)
    (if (== (embeddingprovider) Local)

@@ -158,17 +158,22 @@ while True:
         else:
             temporary_message += [{"role": "user", "content": "Step " + get_current_time() + ": [NO ADDITIONAL USER INPUT. CONTINUE THE CURRENT USER TASK.]"}]
         recent_messages = messages_all[-EPISODIC_TRACE_SIZE:]
+        # remove all "role": "tool" messages from the beginning
         while recent_messages and recent_messages[0].get("role") == "tool":
             recent_messages = recent_messages[1:]
         while True:
             response = client.chat.completions.create(model=MODEL, messages=selfprompt + recent_messages + temporary_message, tools=TOOLS, tool_choice="required", max_tokens=MAX_TOKENS)
             message = response.choices[0].message
             if message.tool_calls:
+                # restrict number of tool calls by MAX_TOOL_CALLS
                 message.tool_calls = message.tool_calls[:MAX_TOOL_CALLS]
                 break
             temporary_message += [{"role": "user", "content": "Your previous response was invalid. Do not answer in plain text. Call at least one tool now."}]
         print(f"RESPONSE {response}\nFINISH_REASON {response.choices[0].finish_reason}\nUSAGE {response.usage}")
+        # replace "role":"tool" content[:RETURN_VALUE_PRESERVE] by
+        # "... omitted" in all messages
         messages_all = [{**old_message, "content": old_message.get("content", "")[:RETURN_VALUE_PRESERVE] + " ... omitted"} if old_message.get("role") == "tool" and " ... omitted" not in old_message.get("content", "") else old_message for old_message in messages_all]
+        # add message for the last tool call
         messages_all += [{**{key: value for key, value in message.model_dump(exclude_none=True).items() if key not in ("reasoning", "reasoning_details", "reasoning_content")}, "content": "Step " + get_current_time() + ": [TOOL CALL]"}]
         tool_outputs = []
         for tool_call in message.tool_calls:
@@ -180,7 +185,13 @@ while True:
                 ret = f"Invalid tool arguments from model: {error}"
             else:
                 try:#unless tool unknown/args formatting issue, we use the tool's INOPS function return value:
-                    ret = f"Unknown tool: {tool_name!r}" if tool_name not in INOPS else "Tool arguments must be a JSON object" if not isinstance(tool_arguments, dict) else INOPS[tool_name][0](**tool_arguments)
+                    if tool_name not in INOPS:
+                        ret = f"Unknown tool: {tool_name!r}"
+                    else:
+                        if not isinstance(tool_arguments, dict):
+                            ret = "Tool arguments must be a JSON object"
+                        else:
+                            ret = INOPS[tool_name][0](**tool_arguments)
                 except Exception as error:
                     ret = f"Tool execution failed: {type(error).__name__}: {error}"
             ret = str(ret)[:MAX_TOOL_OUTPUT_CHARS]

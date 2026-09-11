@@ -1,9 +1,6 @@
 (= (getSkills)
      (collapse (dynamic-skill $_)))
 
-; dynamic skill placeholder to eliminate error when no dynamic skill is added
-(= (dynamic-skill placeholder) (empty))
-
 ; Add skill to the list of skills available to the agent.
 ; $function - MeTTa function which implements the skill
 ; $description - line of text explaining the effect of the function
@@ -12,11 +9,11 @@
 ;              function has no arguments then empty tuple () should be passed.
 (: add-skill (-> Atom String Expression Bool))
 (= (add-skill $function $description $arguments)
-   (let $text (strings-concat ("- " $description ": " $function " " (join " " $arguments)))
+   (let $text (strings-concat ($description ": " $function " " (join " " $arguments)))
      (progn
        (py-call (helper.add_llm_command $function))
        (log INFO "skills" (strings-concat ("Add skill: " $text)))
-       (add-atom &self (= (dynamic-skill $function) $text)))))
+       (add-atom &self (dynamic-skill $function ($function $description $arguments))) )))
 
 ; Remove skill from the list of skills available to the agent.
 ; $function - MeTTa function which implements the skill
@@ -24,7 +21,7 @@
    (progn
      (py-call (helper.remove_llm_command $function))
      (log INFO "skills" (strings-concat ("Remove skill: " $function)))
-     (collapse (match &self (= (dynamic-skill $function) $text) (remove-atom &self (= (dynamic-skill $function) $text))))
+     (collapse (match &self (dynamic-skill $function $info) (remove-atom &self (dynamic-skill $function $info))))
      True))
 
 ; Add new section to the LLM's prompt. The extension is inserted into the
