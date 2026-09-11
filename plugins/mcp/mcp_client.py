@@ -21,7 +21,11 @@ from mcp.client.streamable_http import streamable_http_client
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
+_SRC_DIR = _REPO_ROOT / "src"
+if str(_SRC_DIR) not in sys.path:
+    sys.path.insert(0, str(_SRC_DIR))
 
+import helper
 from src.logger import get_logger
 
 
@@ -184,6 +188,7 @@ def _update_server_tools_if_needed(force_update: bool = False) -> None:
         if not _CONFIG_VALID or not SERVERS_CONFIG_MAP:
             LAST_TOOL_LIST = []
             LAST_REFRESH_TIME = now
+            helper.set_mcp_commands(set())
             return
 
         async def discover_all() -> list[list[str]]:
@@ -197,6 +202,7 @@ def _update_server_tools_if_needed(force_update: bool = False) -> None:
         discovered = _run_async(discover_all())
         LAST_TOOL_LIST = [item for server_tools in discovered for item in server_tools]
         LAST_REFRESH_TIME = now
+        helper.set_mcp_commands(TOOL_ROUTING_MAP)
 
 
 def get_tools_as_list() -> list[str]:
@@ -271,6 +277,15 @@ def _public_result(result: Any) -> str:
     )
 
 
+def _format_successful_result(result: str) -> str:
+    guidance = (
+        "MCP call returned synchronously. Treat the payload below as the current "
+        "result. If it reports COMPLETED, use its output now. Poll only if it "
+        "explicitly reports PENDING."
+    )
+    return f"{guidance}\n{result}" if result else guidance
+
+
 def call_tool(tool_name: str, arguments: Any = None) -> str:
     try:
         parsed_arguments = _parse_arguments(arguments)
@@ -300,13 +315,14 @@ def call_tool(tool_name: str, arguments: Any = None) -> str:
             return f"Error: Tool '{tool_name}' cannot be resolved"
 
         try:
-            return _public_result(
+            result = _public_result(
                 _run_async(
                     _execute_tool_on_server(
                         server_name, config, tool_name, parsed_arguments
                     )
                 )
             )
+            return _format_successful_result(result)
         except asyncio.TimeoutError:
             logger.warning("MCP tool call timed out")
             return "Error: MCP operation timed out"

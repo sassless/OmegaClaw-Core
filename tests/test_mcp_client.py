@@ -12,6 +12,10 @@ import pytest
 
 
 MODULE_PATH = Path(__file__).parents[1] / "plugins" / "mcp" / "mcp_client.py"
+SRC_PATH = Path(__file__).parents[1] / "src"
+sys.path.insert(0, str(SRC_PATH))
+
+import helper as petta_helper
 
 
 @pytest.fixture
@@ -198,6 +202,12 @@ def test_discovery_populates_tool_to_server_routes(monkeypatch, mcp_client):
         '- List user agents: call-mcp get_user_agents {"user_id":"<user_id>"}'
     ]
     assert mcp_client.TOOL_ROUTING_MAP == {"get_user_agents": "asi-create"}
+    assert petta_helper.balance_parentheses(
+        'get_user_agents {"user_id":"user-123"}'
+    ) == (
+        '((call-mcp "get_user_agents" '
+        '"{\\"user_id\\":\\"user-123\\"}"))'
+    )
 
 
 def test_call_tool_parses_json_arguments_and_returns_text_content(
@@ -224,7 +234,10 @@ def test_call_tool_parses_json_arguments_and_returns_text_content(
     monkeypatch.setattr(mcp_client, "_update_server_tools_if_needed", keep_routes)
     monkeypatch.setattr(mcp_client, "_execute_tool_on_server", execute)
 
-    assert mcp_client.call_tool("get_user_agents", '{"limit": 2}') == "first\nsecond"
+    result = mcp_client.call_tool("get_user_agents", '{"limit": 2}')
+
+    assert "returned synchronously" in result
+    assert "first\nsecond" in result
     assert captured == {
         "server_name": "asi-create",
         "config": {"url": "https://example.test"},
@@ -327,7 +340,7 @@ def test_not_found_refreshes_routes_and_retries_once(monkeypatch, mcp_client):
     monkeypatch.setattr(mcp_client, "_update_server_tools_if_needed", refresh)
     monkeypatch.setattr(mcp_client, "_execute_tool_on_server", execute)
 
-    assert mcp_client.call_tool("moving_tool", {}) == "moved"
+    assert "moved" in mcp_client.call_tool("moving_tool", {})
     assert attempts == ["old", "new"]
 
 

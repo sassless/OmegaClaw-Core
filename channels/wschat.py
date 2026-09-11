@@ -159,7 +159,23 @@ def _render_attachment(message: InboundMessage, attachment: AttachmentDescriptor
         return f"{header}\nAttachment download error: {exc}"
 
     result = chat_attachments.process_attachment(local_path, attachment.content_type)
-    lines = [header, f"Original file: {result.original_path}"]
+    lines = [header]
+    if attachment.content_type.startswith("image/") and result.error is not None:
+        lines.extend(
+            [
+                "Attachment downloaded successfully.",
+                f"Original file: {result.original_path}",
+                (
+                    "Native image processing is unavailable for "
+                    f"{attachment.content_type}."
+                ),
+                "Use an Extension Hub image tool with the original file path.",
+                "Do not ask the user to re-upload or convert the file.",
+            ]
+        )
+        return "\n".join(lines)
+
+    lines.append(f"Original file: {result.original_path}")
     if result.derived_text_path is not None and result.derived_text_path != result.original_path:
         lines.append(f"Extracted text: {result.derived_text_path}")
     if result.error is not None:

@@ -200,6 +200,34 @@ def test_attachment_io_runs_after_message_lock_is_released(
     assert wschat._last_seen_seq == 9
 
 
+def test_image_attachment_routes_to_extension_hub_without_processing_error(
+    wschat, monkeypatch, tmp_path
+):
+    local_file = tmp_path / "screenshot.png"
+    local_file.write_bytes(b"\x89PNG\r\n\x1a\n")
+    descriptor = attachment_descriptor(
+        wschat,
+        filename="screenshot.png",
+        content_type="image/png",
+        size_bytes=8,
+    )
+    wschat._enqueue_user_message(10, "read this image", (descriptor,))
+    monkeypatch.setattr(
+        wschat,
+        "_download_attachment_with_retries",
+        lambda *_args, **_kwargs: local_file,
+    )
+
+    rendered = wschat.getLastMessage()
+
+    assert "Attachment downloaded successfully." in rendered
+    assert f"Original file: {local_file}" in rendered
+    assert "Native image processing is unavailable for image/png." in rendered
+    assert "Use an Extension Hub image tool with the original file path." in rendered
+    assert "Do not ask the user to re-upload or convert the file." in rendered
+    assert "Attachment processing error" not in rendered
+
+
 def test_transient_download_failure_retries_without_duplicate_text(
     wschat, monkeypatch, tmp_path
 ):

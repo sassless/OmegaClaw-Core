@@ -43,6 +43,17 @@ TWO_ARG_COMMANDS = {
     "call-mcp",
     "send-attachment",
 }
+MCP_COMMANDS: set[str] = set()
+
+
+def set_mcp_commands(commands):
+    global MCP_COMMANDS
+    MCP_COMMANDS = {
+        command
+        for command in commands
+        if isinstance(command, str) and command not in LLM_COMMANDS
+    }
+
 
 def extract_timestamp(line):
     m = TS_RE.search(line)
@@ -100,7 +111,7 @@ def starts_command_line(line):
     if not s:
         return False
     first = s.split(maxsplit=1)[0].rstrip(")")
-    return first in LLM_COMMANDS
+    return first in LLM_COMMANDS or first in MCP_COMMANDS
 
 def split_command_blocks(s):
     blocks = []
@@ -140,6 +151,10 @@ def balance_parentheses(s):
             continue
         cmd = parts[0]
         rest = parts[1].strip() if len(parts) > 1 else ""
+        if cmd in MCP_COMMANDS:
+            tool_name = cmd
+            cmd = "call-mcp"
+            rest = f'{quote_arg(tool_name)} {rest or "{}"}'
         if cmd in TWO_ARG_COMMANDS:
             if not rest:
                 sexprs.append(f"({cmd})")
