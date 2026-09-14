@@ -104,18 +104,6 @@ class AIProvider(AbstractAIProvider):
         """Check if provider is configured (without initializing)."""
         return bool(config_get_by_key("GATEWAY_URL")) or bool(os.environ.get(self._var_name))
 
-    # FIXME: remove after migration
-    def _build_messages(self, content: str):
-        sysmsg, usermsg = _split_system_user(content)
-
-        if sysmsg:
-            return [
-                {"role": "system", "content": sysmsg},
-                {"role": "user", "content": usermsg},
-            ]
-
-        return [{"role": "user", "content": usermsg}]
-
     def convert_message(self, message: LLMMessage) -> Dict:
         result = { "role": message.role, "content": message.content }
         if isinstance(message, LLMToolCallResponseMessage):
@@ -161,7 +149,6 @@ class AIProvider(AbstractAIProvider):
         response =  LLMResponse()
 
         message = raw.choices[0].message
-        logger.info(f"FIXME: message model dump: {message.model_dump(exclude_none=True).items()}")
         if not message.tool_calls:
             return response
 
