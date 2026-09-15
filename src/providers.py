@@ -95,6 +95,9 @@ class LLMMessage:
         self.content = content
         return self
 
+    def __repr__(self):
+        return f"LLMMessage[role={self.role!r},content={self.content!r}]"
+
 class LLMToolCallResponseMessage(LLMMessage):
 
     def __init__(self):
@@ -119,7 +122,7 @@ class LLMToolCallMessage(LLMMessage):
 class LLMRequest:
 
     def __init__(self):
-        self.messages = []
+        self.messages: [LLMMessage] = []
         self.max_tokens = 6000
         self.reasoning_mode = "medium"
         self.tools = []

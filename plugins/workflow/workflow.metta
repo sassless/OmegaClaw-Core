@@ -15,7 +15,7 @@
          (if (exists-directory (pluginWorkflowMemoryDir))
            (progn
              (log INFO "workflow-plugin" "Adding plugin's skills")
-             (add-skill workflow-load-instructions "Load an existing workflow instructions into the active context" (workflow_name_in_quotes))
+             (add-skill workflow-load-instructions "Load an existing workflow instructions into the active context" (workflow_name))
              (add-skill workflow-unload-instructions "Unload active workflow from the active context" ())
              (let $workflows (join (newline) (cons-atom "Available workflows: " (workflow-list-available)))
                (add-prompt-extension workflows-available $workflows))

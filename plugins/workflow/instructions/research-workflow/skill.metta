@@ -1,10 +1,10 @@
 ; Declare skills to be added to the agent skills when workflow is loaded and
 ; removed on unloading workflow
 
-(skill research-start "Create research project folders" (research_name_in_quotes topic_in_quotes))
-(skill research-step "Mark research step done" (research_name_in_quotes step_in_quotes result_in_quotes next_action_in_quotes))
-(skill research-checkpoint "Pause for user approval" (researchname_in_quotes message_in_quotes))
-(skill research-complete "Finish research and unload workflow" (researchname_in_quotes))
+(skill research-start "Create research project folders" (research_name topic))
+(skill research-step "Mark research step done" (research_name step result next_action))
+(skill research-checkpoint "Pause for user approval" (researchname message))
+(skill research-complete "Finish research and unload workflow" (researchname))
 (skill load-research-dynamic-instructions " Load a generated file into active context" (researchname_in_quotes filename_in_quotes))
 (skill researchDir "Get research directory" ())
 

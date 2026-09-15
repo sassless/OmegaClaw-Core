@@ -46,7 +46,10 @@ def test_last_skill_results_visible_next_turn_mock(llm, comm):
         # the next iteration's LAST_SKILL_USE_RESULTS.
         llm.set_answer(
             prompt1,
-            f'(metta "(quote {sentinel})") (send "computed")',
+            [
+                ("metta", { "sexpression": f"(quote {sentinel})" }),
+                ("send", { "content": "computed" })
+            ]
         )
         if not comm.send_message(prompt1):
             c.fail("comm-1", "could not deliver turn 1 prompt within 60s")

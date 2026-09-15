@@ -60,7 +60,7 @@ def test_pin_invisible_within_iteration_mock(llm, comm):
         )
         llm.set_answer(
             prompt,
-            f'(pin "{marker}") (send "Pinned a progress code.")',
+            [("pin", { "message": f"{marker}" })]
         )
         if not comm.send_message(prompt):
             c.fail("comm", "could not deliver prompt within 60s")
