@@ -109,7 +109,7 @@ def test_transition_episodes_after_eviction_mock(llm, comm):
         )
         llm.set_answer(
             prompt3,
-            [("episodes", { "": f"{seed_ts_str}" }),
+            [("episodes", { "timestamp": f"{seed_ts_str}" }),
              ("send", { "content": f"Recalled {beacon_marker}." })]
         )
         if not comm.send_message(prompt3):
