@@ -81,6 +81,13 @@ class LLMToolCall:
     def __repr__(self):
         return f"LLMToolCall[id={self.id!r},name={self.name!r},arguments={self.arguments!r},error={self.error!r}]"
 
+    def __eq__(self, other):
+        return (self.name == other.name
+                and self.id == other.id
+                and self.error == other.error
+                and self.arguments == other.arguments
+                and self.tool == other.tool)
+
 class LLMMessage:
 
     def __init__(self):
@@ -128,6 +135,10 @@ class LLMRequest:
         self.tools = []
         self.tool_by_name = {}
 
+    def add_message(self, message):
+        self.messages.append(message)
+        return self
+
     def with_messages(self, messages):
         self.messages = messages
         return self
@@ -170,6 +181,9 @@ class LLMResponse:
 
     def __repr__(self):
         return f"LLMResponse[calls={self.calls!r},error={self.error!r}]"
+
+    def __eq__(self, other):
+        return self.calls == other.calls and self.error == other.error
 
 class LLMProvider:
     """LLM provider implementation"""
