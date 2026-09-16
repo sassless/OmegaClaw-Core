@@ -70,8 +70,7 @@
     (if (valid-file-or-folder-name $research-name)
         (progn
             (send (strings-concat ("[" $research-name "] done: " $step)))
-            (appendToHistory  ((get_time_as_string) (newline)
-                (strings-concat  ("RESEARCH [" $research-name "] done: " $step " — " $result "; next: " $next )) (newline)) )
+            (addToHistory (strings-concat  ("RESEARCH [" $research-name "] done: " $step " — " $result "; next: " $next )) )
             (strings-concat ("Done: " $step)))
         (send (strings-concat ("Invalid name: " $research-name ". Only a-z, 0-9, - and _ allowed.")))
      )
@@ -84,9 +83,8 @@
         (progn
               (send (strings-concat ("CHECKPOINT [" $research-name "]\n" $message "\n"
                              "Reply to continue.")))
-              (appendToHistory  ((get_time_as_string) (newline) (strings-concat ("RESEARCH_ACTIVE: " $research-name
-                            " STATUS: WAITING_FOR_USER"
-                            ))  (newline)))
+              (addToHistory  (strings-concat ("RESEARCH_ACTIVE: " $research-name
+                            " STATUS: WAITING_FOR_USER")))
               "Waiting for user")
         (send (strings-concat ("Invalid name: " $research-name ". Only a-z, 0-9, - and _ allowed.")))
      )
@@ -99,7 +97,7 @@
               (send (strings-concat ("Research complete: " $research-name
                              "\nResults in " (researchDir) "/" $research-name "/"
                              "\nWorkflow unloaded from context.")))
-              (appendToHistory  ((get_time_as_string) (newline) (strings-concat  ("RESEARCH [" $research-name "] COMPLETED")) (newline)) )
+              (addToHistory  (strings-concat  ("RESEARCH [" $research-name "] COMPLETED")))
               "Research complete, workflow unloaded")
          (send (strings-concat ("Invalid name: " $research-name ". Only a-z, 0-9, - and _ allowed.")))
       )

@@ -227,8 +227,12 @@ def llmProviderStart(provider):
 def llmProviderChat(request):
     """Chat via selected LLM provider"""
     global _llmprovider
-    response = _llmprovider.chat(request)
-    return _validate_response(request, response)
+    try:
+        response = _llmprovider.chat(request)
+        return _validate_response(request, response)
+    except Exception:
+        logger.exception("Exception while getting LLM response")
+        return LLMResponse()
 
 def _validate_response(request: LLMRequest, response: LLMResponse) -> LLMResponse:
     for call in response.calls:

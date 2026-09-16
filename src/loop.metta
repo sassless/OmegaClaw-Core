@@ -141,10 +141,11 @@
                       ($_ (addToHistory $callstr))
                       ($_ (log INFO "loop" (TOOL-CALL-SEXPR: $callstr)))
                       ($call (sread $callstr))
-                      ($result (eval $call)))
+                      ($result (catch (eval $call))))
                    (progn
                        (case $result (
-                           ((Error $atom $msg) (py-str ("Tool execution failed: {$msg}")))
+                           ((Error $atom $msg) (let $errorstr (swrite $result)
+                                                 (strings-concat ("Tool execution failed: " $errorstr))))
                            ($else (py-str ("SUCCESS, RETURN: " $result))) )))))
            _)
        (log INFO "loop" (TOOL-CALL-RESULT: (quote $content)))

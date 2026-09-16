@@ -91,7 +91,7 @@ class TestWorkflowPlugin:
             prompt2 = make_prompt(skill_id, "Continue the workflow: perform step 1.")
             llm.set_answer(
                 prompt2,
-                [("{WORKFLOW_SKILL}", { "message": f"{DEMO_MESSAGE}" }),
+                [(f"{WORKFLOW_SKILL}", { "message": f"{DEMO_MESSAGE}" }),
                 ("workflow-unload-instructions", {})]
             )
             if not comm.send_message(prompt2):
@@ -130,7 +130,7 @@ class TestWorkflowPlugin:
             unload_id = c.run_id + 1
             time.sleep(5)
             prompt2 = make_prompt(unload_id, "The workflow is done, unload it now.")
-            llm.set_answer(prompt2, [("workflow-unload-instructions")])
+            llm.set_answer(prompt2, [("workflow-unload-instructions", {})])
             if not comm.send_message(prompt2):
                 c.fail("comm-2", "could not deliver turn 2 prompt within 60s")
             time.sleep(12)   # let the unload turn complete
@@ -142,7 +142,7 @@ class TestWorkflowPlugin:
             marker = f"gone-{c.run_id}"
             time.sleep(2)
             prompt3 = make_prompt(gone_id, "Please run the workflow step again.")
-            llm.set_answer(prompt3, [("{WORKFLOW_SKILL}", { "message": f"{marker}" })])
+            llm.set_answer(prompt3, [(f"{WORKFLOW_SKILL}", { "message": f"{marker}" })])
             if not comm.send_message(prompt3):
                 c.fail("comm-3", "could not deliver turn 3 prompt within 60s")
             still = _recv_contains(comm, marker, timeout=25)
