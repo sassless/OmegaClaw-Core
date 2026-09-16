@@ -1,5 +1,5 @@
 (= (getSkills)
-     (collapse (dynamic-skill $_)))
+     (collapse (match &self (dynamic-skill $name $info) $info)))
 
 ; Add skill to the list of skills available to the agent.
 ; $function - MeTTa function which implements the skill

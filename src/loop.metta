@@ -113,7 +113,7 @@
                       (omega (+ 1 $k))))))
 
 (= (collectTools)
-   (py-call (providers.getTools (collapse (match &self (dynamic-skill $name $info) $info)))))
+   (py-call (providers.getTools (getSkills))))
 
 (= (episodicAppend $item)
    (let $episodic (get-state &episodic)
