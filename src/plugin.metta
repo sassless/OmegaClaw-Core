@@ -12,8 +12,7 @@
    (py-call (plugin.loadPythonPlugin $name $location)))
 
 (= (loadPlugin (metta $name $location))
-   (let $locationstr (swrite $location)
-       (loadMettaPlugin $name $locationstr)))
+   (loadMettaPlugin $name $location))
 
 (= (loadMettaPlugin $name $location)
    (let $rc1
