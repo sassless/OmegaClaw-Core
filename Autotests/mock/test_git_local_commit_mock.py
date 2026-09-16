@@ -57,7 +57,7 @@ def test_git_local_commit_mock(llm, comm):
                 ("shell", { "cmd": f"git -C {TARGET_DIR} init" }),
                 ("write-file", { "filename": f"{commit_path}", "content": f"{marker}" }),
                 ("shell", { "cmd": f"git -C {TARGET_DIR} add -A" }),
-                ("shell", { "cmd": f'git -C {TARGET_DIR} commit -m \\"add hello {c.run_id}\\"' })
+                ("shell", { "cmd": f'git -C {TARGET_DIR} commit -m "add hello {c.run_id}"' })
             ]
         )
         if not comm.send_message(prompt):

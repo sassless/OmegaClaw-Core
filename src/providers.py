@@ -289,6 +289,8 @@ def llmToolCallToSExpr(call: LLMToolCall):
     sexpr = f"({call.name} "
     for parameter in call.tool.parameters:
         if parameter.name in call.arguments:
-            sexpr = sexpr + f"\"{call.arguments[parameter.name]}\" "
+            arg = call.arguments[parameter.name]
+            arg = arg.replace('"','\\"')
+            sexpr = sexpr + f"\"{arg}\" "
     return sexpr[:-1] + ")"
 

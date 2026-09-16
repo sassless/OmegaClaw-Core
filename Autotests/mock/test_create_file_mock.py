@@ -30,7 +30,7 @@ def test_hello_file(llm, comm):
             f"Please overwrite {TARGET_FILE} so it contains exactly the single "
             "word Hello (no quotes, no extra newlines, create the directory if needed).",
         )
-        llm.set_answer(prompt, [("shell", { "cmd": "mkdir -p /tmp/testcat" })
+        llm.set_answer(prompt, [("shell", { "cmd": "mkdir -p /tmp/testcat" }),
                                 ("write-file", { "filename": "/tmp/testcat/hello.txt",
                                                 "content": "Hello" })])
 
