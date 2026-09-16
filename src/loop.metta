@@ -134,12 +134,13 @@
 (= (callTools (cons $head $tail))
    (progn
        (log INFO "loop" (TOOL-CALL: (py-str ($head))))
-       (addToHistory (py-str ("(" (llmToolCallGetName $head) (llmToolCallGetArguments $head) ")")))
        (let $content
            (if (llmToolCallIsError $head)
                (llmToolCallGetError $head)
-               (let* (($call (sread (llmToolCallToSExpr $head)))
-                      ($_ (log INFO "loop" (TOOL-CALL-SEXPR: (quote $call))))
+               (let* (($callstr (llmToolCallToSExpr $head))
+                      ($_ (addToHistory $callstr))
+                      ($_ (log INFO "loop" (TOOL-CALL-SEXPR: $callstr)))
+                      ($call (sread $callstr))
                       ($result (eval $call)))
                    (progn
                        (case $result (

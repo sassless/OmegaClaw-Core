@@ -34,7 +34,7 @@
          "")))
 
 (= (addToHistory $content)
-   (appendToHistory (py-str ("(\"" (get_time_as_string) "\" " $content ")" (newline)))))
+   (appendToHistory (py-str ("(\"" (get_time_as_string) "\" " $content ")"))))
 
 (= (embed $str)
    (if (== (embeddingprovider) Local)
