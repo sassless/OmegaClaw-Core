@@ -114,7 +114,9 @@ class LLMToolCallResponseMessage(LLMMessage):
     def with_callid(self, callid):
         self.callid = callid
         return self
-    #return { "role": role, "tool_call_id": callid, "content": content }
+
+    def __repr__(self):
+        return f"LLMToolCallResponseMessage[role={self.role!r},content={self.content!r},callid={self.callid!r}]"
 
 class LLMToolCallMessage(LLMMessage):
 
@@ -125,6 +127,9 @@ class LLMToolCallMessage(LLMMessage):
     def with_calls(self, calls):
         self.calls = calls
         return self
+
+    def __repr__(self):
+        return f"LLMToolCallMessage[role={self.role!r},content={self.content!r},calls={self.calls!r}]"
 
 class LLMRequest:
 
