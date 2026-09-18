@@ -52,6 +52,48 @@
 ; dynamic prompt extension placeholder to eliminate error when no extension is added
 (= (prompt-extension placeholder) (empty))
 
+(= (collectTools)
+   (py-call (providers.getTools (getSkills))))
+
+(= (episodicAppend $item)
+   (let $episodic (get-state &episodic)
+     (change-state! &episodic (py-call (utils.listAppend $episodic $item)))))
+
+(= (episodicTail $size)
+   (let $episodic (get-state &episodic)
+     (change-state! &episodic (py-call (utils.listSlice $episodic (* -1 $size))))))
+
+(= (episodicGet)
+   (get-state &episodic))
+
+; TODO: for each "role": "tool" item in the episodic memory cut the content 
+; keeping only RETURN_VALUE_TO_PRESERVE chars and adding " ... omitted" postfix
+(= (episodicCutToolResults) _)
+
+(= (callTools ()) _)
+(= (callTools (cons $head $tail))
+   (progn
+       (log INFO "loop" (TOOL-CALL: (py-str ($head))))
+       (let $content
+           (if (llmToolCallIsError $head)
+               (llmToolCallGetError $head)
+               (let* (($callstr (llmToolCallToSExpr $head))
+                      ($_ (addToHistory $callstr))
+                      ($_ (log INFO "loop" (TOOL-CALL-SEXPR: $callstr)))
+                      ($call (sread $callstr))
+                      ($result (catch (eval $call))))
+                   (progn
+                       (case $result (
+                           ((Error $atom $msg) (let $errorstr (swrite $result)
+                                                 (strings-concat ("Tool execution failed: " $errorstr))))
+                           ($else (py-str ("SUCCESS, RETURN: " $result))) )))))
+           _)
+       (log INFO "loop" (TOOL-CALL-RESULT: (quote $content)))
+       (episodicAppend (llmRequestMessage role "tool"
+                                          callid (llmToolCallGetId $head)
+                                          content (py-str ("Step " (get_time_as_string) ": " $content))))
+       (callTools $tail)))
+
 (= (omega)
   (progn (initConfig)
          (initLogger)
@@ -111,45 +153,3 @@
                       (cut)
                       (gc)
                       (omega (+ 1 $k))))))
-
-(= (collectTools)
-   (py-call (providers.getTools (getSkills))))
-
-(= (episodicAppend $item)
-   (let $episodic (get-state &episodic)
-     (change-state! &episodic (py-call (utils.listAppend $episodic $item)))))
-
-(= (episodicTail $size)
-   (let $episodic (get-state &episodic)
-     (change-state! &episodic (py-call (utils.listSlice $episodic (* -1 $size))))))
-
-(= (episodicGet)
-   (get-state &episodic))
-
-; TODO: for each "role": "tool" item in the episodic memory cut the content 
-; keeping only RETURN_VALUE_TO_PRESERVE chars and adding " ... omitted" postfix
-(= (episodicCutToolResults) _)
-
-(= (callTools ()) _)
-(= (callTools (cons $head $tail))
-   (progn
-       (log INFO "loop" (TOOL-CALL: (py-str ($head))))
-       (let $content
-           (if (llmToolCallIsError $head)
-               (llmToolCallGetError $head)
-               (let* (($callstr (llmToolCallToSExpr $head))
-                      ($_ (addToHistory $callstr))
-                      ($_ (log INFO "loop" (TOOL-CALL-SEXPR: $callstr)))
-                      ($call (sread $callstr))
-                      ($result (catch (eval $call))))
-                   (progn
-                       (case $result (
-                           ((Error $atom $msg) (let $errorstr (swrite $result)
-                                                 (strings-concat ("Tool execution failed: " $errorstr))))
-                           ($else (py-str ("SUCCESS, RETURN: " $result))) )))))
-           _)
-       (log INFO "loop" (TOOL-CALL-RESULT: (quote $content)))
-       (episodicAppend (llmRequestMessage role "tool"
-                                          callid (llmToolCallGetId $head)
-                                          content (py-str ("Step " (get_time_as_string) ": " $content))))
-       (callTools $tail)))
