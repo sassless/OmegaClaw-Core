@@ -79,8 +79,8 @@ def test_skill_query_mock(llm, comm):
         )
         llm.set_answer(
             recall_prompt,
-            f'(query "favorite color") '
-            f'(send "Your favorite color is {secret_color}.")',
+            [("query", { "content": f"favorite color" }),
+            ("send", { "content": f"Your favorite color is {secret_color}." })]
         )
         if not comm.send_message(recall_prompt):
             c.fail("comm-recall", "could not deliver recall prompt within 60s")
