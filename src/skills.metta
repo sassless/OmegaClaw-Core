@@ -118,15 +118,9 @@
 ; Embedded skills
 
 !(add-skill remember "Remember a particular string such as a skill or memory." (content))
-!(add-skill forget "Forget a particular LTM item via its timestamp, arg format: %Y-%m-%d %H:%M:%S" (timestamp_ltm))
 !(add-skill query "Query long-term embedding memory using a short phrase." (content))
 !(add-skill episodes  "Search history for episodes around a timestamp in %Y-%m-%d %H:%M:%S format." (timestamp))
 !(add-skill pin "Pin a string as a short-term working-memory item to keep track of task state and relevant query results as query returns are only available once and gone next cycle." (message))
-!(add-skill update "Update the label and embedding of a memory, linked episodes and promotion will transfer over, time format here with underline: %Y-%m-%d_%H:%M:%S" (timestamp_ltm updated_content))
-!(add-skill link "Link episode to LTM item, has no promotion effect, both times with %Y-%m-%d_%H:%M:%S format" (timestamp_ltm timestamp_episode))
-!(add-skill unlink "Unlink episode from LTM, both times with %Y-%m-%d_%H:%M:%S format" (timestamp_ltm timestamp_episode))
-!(add-skill support "When an episode supports LTM item, linking it to the episode time, and positively updating its truth value, bot times in %Y-%m-%d_%H:%M:%S format" (timestamp_ltm timestamp_episode))
-!(add-skill contradict "When an episode contradicts LTM item, linking it to the episode time, and negatively updating its truth value, both times in %Y-%m-%d_%H:%M:%S format" (timestamp_ltm timestamp_episode))
 !(add-skill shell "Execute a shell command." (cmd))
 !(add-skill read-file "Read a file." (filename))
 !(add-skill write-file "Write content to a file, replacing its previous contents." (filename content))
