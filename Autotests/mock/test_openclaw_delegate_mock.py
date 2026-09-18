@@ -277,7 +277,7 @@ def test_delegate_stays_async_under_a_slow_gateway_mock(llm, comm, gateway):
         c.step("an unrelated prompt is answered while the delegation is still pending")
         second_id = c.run_id + 1
         second = make_prompt(second_id, "Answer with the marker.")
-        llm.set_answer(request=second, response=[("send", { "": f"STILL-ALIVE-{c.run_id}" })])
+        llm.set_answer(request=second, response=[("send", { "content": f"STILL-ALIVE-{c.run_id}" })])
         if not comm.send_message(second):
             c.fail("comm", "could not deliver the second prompt within timeout")
         alive = wait_for_skill_call(second_id, "send", timeout=ACK_BUDGET_SECONDS,
