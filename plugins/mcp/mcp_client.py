@@ -33,6 +33,16 @@ logger = get_logger(__name__)
 
 CACHE_TTL_SECONDS = 300
 MCP_OPERATION_TIMEOUT_SECONDS = 30
+MCP_AGENT_EXECUTION_TIMEOUT_SECONDS = 180
+EXECUTION_OUTCOME_UNKNOWN = {
+    "status": "UNKNOWN",
+    "code": "agent_execution_outcome_unknown",
+    "retryable": False,
+    "message": (
+        "Agent execution timed out. Its outcome is unknown; processing may continue. "
+        "Do not automatically retry or resubmit this operation."
+    ),
+}
 FILE_REFERENCE_PREFIX = "@file:"
 FILE_REFERENCE_HINT = (
     'Pass file content as "' + FILE_REFERENCE_PREFIX + '<path>" instead of inline '
@@ -79,7 +89,9 @@ def _load_mcp_config_to_memory() -> None:
 
 @asynccontextmanager
 async def _connect_to_server(
-    server_name: str, config: dict[str, Any]
+    server_name: str,
+    config: dict[str, Any],
+    timeout_seconds: float = MCP_OPERATION_TIMEOUT_SECONDS,
 ) -> AsyncIterator[tuple[Any, Any]]:
     transport = config.get("transport", "sse")
     url = config.get("url")
@@ -88,7 +100,12 @@ async def _connect_to_server(
         headers = {}
 
     if transport == "sse":
-        async with sse_client(url=url, headers=headers) as streams:
+        async with sse_client(
+            url=url,
+            headers=headers,
+            timeout=timeout_seconds,
+            sse_read_timeout=timeout_seconds,
+        ) as streams:
             yield streams[0], streams[1]
         return
 
@@ -96,7 +113,7 @@ async def _connect_to_server(
         async with httpx.AsyncClient(
             headers=headers,
             follow_redirects=True,
-            timeout=httpx.Timeout(MCP_OPERATION_TIMEOUT_SECONDS),
+            timeout=httpx.Timeout(timeout_seconds),
         ) as http_client:
             async with streamable_http_client(
                 url, http_client=http_client
@@ -110,14 +127,12 @@ async def _connect_to_server(
 
 
 def _tool_description(tool: Any) -> str:
-    properties = getattr(tool, "inputSchema", {}).get("properties", {})
-    if not isinstance(properties, dict):
-        properties = {}
-    arguments = json.dumps(
-        {name: f"<{name}>" for name in properties}, separators=(",", ":")
-    )
+    schema = json.dumps(getattr(tool, "inputSchema", {}), separators=(",", ":"))
     description = getattr(tool, "description", None) or "No description"
-    return f"- {description}: call-mcp {tool.name} {arguments}"
+    return (
+        f"- {description}: call-mcp {tool.name} <arguments_json>\n"
+        f"  Input schema: {schema}"
+    )
 
 
 async def _discover_and_map_server(
@@ -160,8 +175,15 @@ async def _execute_tool_on_server(
     tool_name: str,
     arguments: dict[str, Any],
 ) -> Any:
-    async with asyncio.timeout(MCP_OPERATION_TIMEOUT_SECONDS):
-        async with _connect_to_server(server_name, config) as (read, write):
+    timeout_seconds = (
+        MCP_AGENT_EXECUTION_TIMEOUT_SECONDS
+        if tool_name == "send_agent_message"
+        else MCP_OPERATION_TIMEOUT_SECONDS
+    )
+    async with asyncio.timeout(timeout_seconds):
+        async with _connect_to_server(
+            server_name, config, timeout_seconds=timeout_seconds
+        ) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
                 return await session.call_tool(tool_name, arguments=arguments)
@@ -214,7 +236,12 @@ def get_tools_prompt() -> str:
     tools = get_tools_as_list()
     if not tools:
         return ""
-    return "\n".join(tools + [FILE_REFERENCE_HINT])
+    guidance = (
+        "Remote MCP tools: use call-mcp with a listed remote tool name and a JSON "
+        "object matching its input schema. Omit optional arguments unless needed. "
+        "Use {} when no arguments are needed."
+    )
+    return "\n".join([guidance] + tools + [FILE_REFERENCE_HINT])
 
 
 class FileReferenceError(ValueError):
@@ -279,9 +306,14 @@ def _public_result(result: Any) -> str:
 
 def _format_successful_result(result: str) -> str:
     guidance = (
-        "MCP call returned synchronously. Treat the payload below as the current "
-        "result. If it reports COMPLETED, use its output now. Poll only if it "
-        "explicitly reports PENDING."
+        "Treat the MCP payload below as the current result. If it has a top-level status, "
+        "follow it: "
+        "COMPLETED means use the result and attachments now; PENDING means wait about "
+        "poll_after_seconds and call the tool and arguments in next_action; BUSY means poll "
+        "the returned operation_id instead of resubmitting; FAILED means report the failure "
+        "without automatically retrying; UNKNOWN means completion could not be confirmed, "
+        "so explain the uncertainty and ask the user before resubmitting because it may "
+        "duplicate the action."
     )
     return f"{guidance}\n{result}" if result else guidance
 
@@ -312,7 +344,23 @@ def call_tool(tool_name: str, arguments: Any = None) -> str:
         server_name = TOOL_ROUTING_MAP.get(tool_name)
         config = SERVERS_CONFIG_MAP.get(server_name) if server_name else None
         if config is None:
-            return f"Error: Tool '{tool_name}' cannot be resolved"
+            error = f"Error: Tool '{tool_name}' cannot be resolved. "
+            if tool_name == "get-mcp-tools":
+                error += (
+                    "get-mcp-tools is a local helper, not a remote MCP tool. "
+                    "The remote tool list is already included in the prompt. "
+                )
+            available_tools = ", ".join(sorted(TOOL_ROUTING_MAP))
+            if not available_tools:
+                return (
+                    error + "No remote MCP tools are currently available. "
+                    "Check MCP configuration and discovery."
+                )
+            return (
+                error + f"Available remote tools: {available_tools}. "
+                "Use call-mcp with one of these names and a JSON object matching "
+                "its input schema."
+            )
 
         try:
             result = _public_result(
@@ -323,10 +371,18 @@ def call_tool(tool_name: str, arguments: Any = None) -> str:
                 )
             )
             return _format_successful_result(result)
-        except asyncio.TimeoutError:
+        except (asyncio.TimeoutError, httpx.TimeoutException):
             logger.warning("MCP tool call timed out")
+            if tool_name == "send_agent_message":
+                return json.dumps(EXECUTION_OUTCOME_UNKNOWN)
             return "Error: MCP operation timed out"
         except Exception as error:
+            response = getattr(error, "response", None)
+            status_code = getattr(
+                response, "status_code", getattr(error, "status_code", None)
+            )
+            if tool_name == "send_agent_message" and status_code == 504:
+                return json.dumps(EXECUTION_OUTCOME_UNKNOWN)
             if attempt == 0 and _is_not_found(error):
                 _update_server_tools_if_needed(force_update=True)
                 continue

@@ -1,6 +1,7 @@
 import asyncio
 import base64
 import importlib.util
+import json
 import logging
 import sys
 import types
@@ -49,6 +50,7 @@ def mcp_client(monkeypatch):
     httpx_module = types.ModuleType("httpx")
     httpx_module.AsyncClient = object
     httpx_module.Timeout = lambda seconds: seconds
+    httpx_module.TimeoutException = type("HTTPTimeout", (Exception,), {})
     monkeypatch.setitem(sys.modules, "httpx", httpx_module)
 
     logger_module = types.ModuleType("src.logger")
@@ -107,7 +109,7 @@ def test_missing_transport_defaults_to_sse(monkeypatch, mcp_client):
     captured = {}
 
     @asynccontextmanager
-    async def legacy_sse_client(*, url, headers):
+    async def legacy_sse_client(*, url, headers, **_kwargs):
         captured["url"] = url
         captured["headers"] = headers
         yield "read", "write"
@@ -169,7 +171,7 @@ def test_discovery_populates_tool_to_server_routes(monkeypatch, mcp_client):
     )
 
     @asynccontextmanager
-    async def connection(_server_name, _config):
+    async def connection(_server_name, _config, **_kwargs):
         yield "read", "write"
 
     tool = types.SimpleNamespace(
@@ -199,7 +201,10 @@ def test_discovery_populates_tool_to_server_routes(monkeypatch, mcp_client):
     monkeypatch.setattr(mcp_client, "ClientSession", Session)
 
     assert mcp_client.get_tools_as_list() == [
-        '- List user agents: call-mcp get_user_agents {"user_id":"<user_id>"}'
+        (
+            '- List user agents: call-mcp get_user_agents <arguments_json>\n'
+            '  Input schema: {"properties":{"user_id":{"type":"string"}}}'
+        )
     ]
     assert mcp_client.TOOL_ROUTING_MAP == {"get_user_agents": "asi-create"}
     assert petta_helper.balance_parentheses(
@@ -236,7 +241,6 @@ def test_call_tool_parses_json_arguments_and_returns_text_content(
 
     result = mcp_client.call_tool("get_user_agents", '{"limit": 2}')
 
-    assert "returned synchronously" in result
     assert "first\nsecond" in result
     assert captured == {
         "server_name": "asi-create",
@@ -263,7 +267,7 @@ def test_discovery_and_calls_are_bounded_by_thirty_second_timeout(
         return Timeout()
 
     @asynccontextmanager
-    async def connection(_server_name, _config):
+    async def connection(_server_name, _config, **_kwargs):
         yield "read", "write"
 
     class Session:
@@ -431,3 +435,63 @@ def test_tool_prompt_documents_the_file_reference_syntax(monkeypatch, mcp_client
     prompt = mcp_client.get_tools_prompt()
 
     assert "@file:" in prompt
+
+
+@pytest.mark.parametrize("tool_name", ["send_agent_message", "get_user_agents"])
+def test_slow_agent_execution_has_its_own_deadline(monkeypatch, mcp_client, tool_name):
+    monkeypatch.setattr(mcp_client, "MCP_OPERATION_TIMEOUT_SECONDS", 0.01)
+    monkeypatch.setattr(mcp_client, "MCP_AGENT_EXECUTION_TIMEOUT_SECONDS", 0.2, raising=False)
+
+    @asynccontextmanager
+    async def connection(_server_name, _config, **_kwargs):
+        yield "read", "write"
+
+    class Session:
+        def __init__(self, _read, _write):
+            pass
+
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *_args):
+            return None
+
+        async def initialize(self):
+            pass
+
+        async def call_tool(self, _name, *, arguments):
+            await asyncio.sleep(0.04)
+            return "OCR result"
+
+    monkeypatch.setattr(mcp_client, "_connect_to_server", connection)
+    monkeypatch.setattr(mcp_client, "ClientSession", Session)
+    call = mcp_client._execute_tool_on_server("server", {}, tool_name, {})
+    if tool_name == "send_agent_message":
+        assert asyncio.run(call) == "OCR result"
+    else:
+        with pytest.raises(asyncio.TimeoutError):
+            asyncio.run(call)
+
+
+@pytest.mark.parametrize("failure", ["deadline", "http_timeout", "gateway_timeout"])
+def test_agent_timeout_returns_unknown_outcome_without_retry(monkeypatch, mcp_client, failure):
+    mcp_client.SERVERS_CONFIG_MAP = {"server": {"url": "https://example.test"}}
+    mcp_client.TOOL_ROUTING_MAP = {"send_agent_message": "server"}
+    mcp_client.LAST_REFRESH_TIME = mcp_client.monotonic()
+    calls = []
+
+    async def execute(*_args):
+        calls.append(1)
+        if failure == "deadline":
+            raise asyncio.TimeoutError
+        if failure == "http_timeout":
+            raise mcp_client.httpx.TimeoutException()
+        error = RuntimeError("Gateway Timeout")
+        error.status_code = 504
+        raise error
+
+    monkeypatch.setattr(mcp_client, "_execute_tool_on_server", execute)
+    result = json.loads(mcp_client.call_tool("send_agent_message", {}))
+    assert result["status"] == "UNKNOWN"
+    assert result["retryable"] is False
+    assert len(calls) == 1
