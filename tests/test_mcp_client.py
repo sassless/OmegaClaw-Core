@@ -2,7 +2,6 @@ import asyncio
 import base64
 import importlib.util
 import json
-import logging
 import sys
 import types
 from contextlib import asynccontextmanager
@@ -53,10 +52,6 @@ def mcp_client(monkeypatch):
     httpx_module.TimeoutException = type("HTTPTimeout", (Exception,), {})
     monkeypatch.setitem(sys.modules, "httpx", httpx_module)
 
-    logger_module = types.ModuleType("src.logger")
-    logger_module.get_logger = logging.getLogger
-    monkeypatch.setitem(sys.modules, "src.logger", logger_module)
-
     spec = importlib.util.spec_from_file_location("mcp_client_under_test", MODULE_PATH)
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)
@@ -66,6 +61,15 @@ def mcp_client(monkeypatch):
 def test_public_cache_and_timeout_constants_are_stable(mcp_client):
     assert mcp_client.CACHE_TTL_SECONDS == 300
     assert mcp_client.MCP_OPERATION_TIMEOUT_SECONDS == 30
+
+
+def test_empty_config_does_not_require_fork_command_alias_api(
+    monkeypatch, mcp_client
+):
+    monkeypatch.delenv("MCP_JSON_CONTENT", raising=False)
+    monkeypatch.delattr(petta_helper, "set_mcp_commands")
+
+    assert mcp_client.get_tools_as_list() == []
 
 
 def test_streamable_http_forwards_headers_to_the_backend_client(monkeypatch, mcp_client):

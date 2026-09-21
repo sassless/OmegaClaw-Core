@@ -20,7 +20,7 @@
 
 - name: wschat
   loader: python
-  location: "{REPO}/channels"
+  location: "/opt/asi-omega/plugins/wschat"
 
 - name: openaiapi
   loader: python

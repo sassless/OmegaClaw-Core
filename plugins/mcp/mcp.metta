@@ -1,4 +1,4 @@
-(= (loadOmegaClawPlugin)
+(= (loadMcpPlugin)
    (progn
      (add-atom &self
        (= (get-mcp-tools)
@@ -12,3 +12,6 @@
           (let $tools (py-call (mcp_client.get_tools_prompt))
             (if (== $tools "") (empty) $tools))))
      ()))
+
+(= (loadOmegaClawPlugin) (loadMcpPlugin))
+(= (loadOmegaPlugin) (loadMcpPlugin))

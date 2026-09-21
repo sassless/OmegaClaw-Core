@@ -648,5 +648,13 @@ class WSChannel(channels.CommChannel):
         return send_message_with_attachment(message, attachment_id)
 
 
-def loadOmegaClawPlugin():
+def _load_wschat_plugin():
     channels.registerCommChannel("websocket", WSChannel())
+
+
+def loadOmegaClawPlugin():
+    return _load_wschat_plugin()
+
+
+def loadOmegaPlugin():
+    return _load_wschat_plugin()

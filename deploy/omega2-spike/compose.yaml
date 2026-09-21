@@ -14,6 +14,7 @@ services:
       IMPORT_KB_ON_START: "0"
     volumes:
       - ./config/plugins.yaml:/PeTTa/repos/Omega/config/plugins.yaml:ro
-      - ./plugins/mcp/mcp.metta:/opt/asi-omega/plugins/mcp/mcp.metta:ro
-      - ./plugins/mcp/mcp_client.py:/opt/asi-omega/plugins/mcp/mcp_client.py:ro
-      - ../../plugins/mcp/mcp_client.py:/opt/asi-omega/plugins/mcp/mcp_client_impl.py:ro
+      - ../../plugins/mcp/mcp.metta:/opt/asi-omega/plugins/mcp/mcp.metta:ro
+      - ../../plugins/mcp/mcp_client.py:/opt/asi-omega/plugins/mcp/mcp_client.py:ro
+      - ../../channels/wschat.py:/opt/asi-omega/plugins/wschat/wschat.py:ro
+      - ../../channels/chat_attachments.py:/opt/asi-omega/plugins/wschat/chat_attachments.py:ro

@@ -5,8 +5,8 @@ from __future__ import annotations
 import asyncio
 import base64
 import json
+import logging
 import os
-import sys
 import threading
 from contextlib import asynccontextmanager
 from pathlib import Path
@@ -18,18 +18,16 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 
-_REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(_REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(_REPO_ROOT))
-_SRC_DIR = _REPO_ROOT / "src"
-if str(_SRC_DIR) not in sys.path:
-    sys.path.insert(0, str(_SRC_DIR))
-
 import helper
-from src.logger import get_logger
 
 
-logger = get_logger(__name__)
+logger = logging.getLogger(__name__)
+
+# Omega 2.0 exposes skills as structured tools, while its text fallback still
+# consults the helper command metadata. Older OmegaClaw versions already add
+# these entries statically, so set insertion keeps this compatible with both.
+helper.TWO_ARG_COMMANDS.add("call-mcp")
+helper.add_llm_command("call-mcp")
 
 CACHE_TTL_SECONDS = 300
 MCP_OPERATION_TIMEOUT_SECONDS = 30
@@ -56,6 +54,13 @@ LAST_TOOL_LIST: list[str] = []
 LAST_REFRESH_TIME: float | None = None
 _CONFIG_VALID = True
 _CACHE_LOCK = threading.Lock()
+
+
+def _set_dynamic_command_aliases(commands: Any) -> None:
+    """Configure optional aliases when running on an older OmegaClaw helper."""
+    setter = getattr(helper, "set_mcp_commands", None)
+    if setter is not None:
+        setter(commands)
 
 
 def _load_mcp_config_to_memory() -> None:
@@ -210,7 +215,7 @@ def _update_server_tools_if_needed(force_update: bool = False) -> None:
         if not _CONFIG_VALID or not SERVERS_CONFIG_MAP:
             LAST_TOOL_LIST = []
             LAST_REFRESH_TIME = now
-            helper.set_mcp_commands(set())
+            _set_dynamic_command_aliases(set())
             return
 
         async def discover_all() -> list[list[str]]:
@@ -224,7 +229,7 @@ def _update_server_tools_if_needed(force_update: bool = False) -> None:
         discovered = _run_async(discover_all())
         LAST_TOOL_LIST = [item for server_tools in discovered for item in server_tools]
         LAST_REFRESH_TIME = now
-        helper.set_mcp_commands(TOOL_ROUTING_MAP)
+        _set_dynamic_command_aliases(TOOL_ROUTING_MAP)
 
 
 def get_tools_as_list() -> list[str]:
