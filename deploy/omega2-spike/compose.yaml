@@ -1,0 +1,19 @@
+services:
+  omega:
+    build:
+      context: .
+    container_name: omega2-plugin-spike
+    init: true
+    stdin_open: true
+    tty: true
+    command:
+      - provider=Test
+      - commchannel=test
+      - embeddingprovider=Local
+    environment:
+      IMPORT_KB_ON_START: "0"
+    volumes:
+      - ./config/plugins.yaml:/PeTTa/repos/Omega/config/plugins.yaml:ro
+      - ./plugins/mcp/mcp.metta:/opt/asi-omega/plugins/mcp/mcp.metta:ro
+      - ./plugins/mcp/mcp_client.py:/opt/asi-omega/plugins/mcp/mcp_client.py:ro
+      - ../../plugins/mcp/mcp_client.py:/opt/asi-omega/plugins/mcp/mcp_client_impl.py:ro
