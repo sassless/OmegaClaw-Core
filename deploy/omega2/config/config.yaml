@@ -1,0 +1,5 @@
+provider: ASICloud
+commchannel: websocket
+embeddingprovider: Local
+mcpConfigPath: /PeTTa/repos/Omega/config/private/mcp.json
+wsTokenPath: /PeTTa/repos/Omega/config/private/ws-token

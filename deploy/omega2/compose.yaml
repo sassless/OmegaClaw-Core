@@ -1,0 +1,35 @@
+services:
+  omega:
+    build:
+      context: .
+    image: omegaclaw-omega2:local
+    container_name: omegaclaw
+    init: true
+    stdin_open: true
+    tty: true
+    restart: unless-stopped
+    security_opt:
+      - no-new-privileges:true
+    environment:
+      ASI_API_KEY: "${ASI_API_KEY:?Set ASI_API_KEY in the shell or an untracked .env file}"
+      IMPORT_KB_ON_START: "${IMPORT_KB_ON_START:-0}"
+    command:
+      - provider=ASICloud
+      - commchannel=websocket
+      - embeddingprovider=Local
+      - WS_URL=${OMEGA_WS_URL:?Set OMEGA_WS_URL in the shell or an untracked .env file}
+      - mcpConfigPath=/PeTTa/repos/Omega/config/private/mcp.json
+      - wsTokenPath=/PeTTa/repos/Omega/config/private/ws-token
+    volumes:
+      - omega-memory:/PeTTa/repos/Omega/memory
+      - ./config/config.yaml:/PeTTa/repos/Omega/config/config.yaml:ro
+      - ./config/plugins.yaml:/PeTTa/repos/Omega/config/plugins.yaml:ro
+      - ${OMEGA_MCP_CONFIG_FILE:?Set OMEGA_MCP_CONFIG_FILE to an MCP JSON file}:/PeTTa/repos/Omega/config/private/mcp.json:ro
+      - ${OMEGA_WS_TOKEN_FILE:?Set OMEGA_WS_TOKEN_FILE to a WebSocket token file}:/PeTTa/repos/Omega/config/private/ws-token:ro
+      - ../../plugins/mcp/mcp.metta:/opt/asi-omega/plugins/mcp/mcp.metta:ro
+      - ../../plugins/mcp/mcp_client.py:/opt/asi-omega/plugins/mcp/mcp_client.py:ro
+      - ../../channels/wschat.py:/opt/asi-omega/plugins/wschat/wschat.py:ro
+      - ../../channels/chat_attachments.py:/opt/asi-omega/plugins/wschat/chat_attachments.py:ro
+
+volumes:
+  omega-memory:
