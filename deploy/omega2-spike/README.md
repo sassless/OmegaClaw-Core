@@ -43,6 +43,10 @@ The `wschat` registry entry points to the mounted `channels/wschat.py` and
 smoke test because `commchannel=test`; selecting `commchannel=wschat` requires
 `WS_URL` and, when the server requires it, `WS_TOKEN`.
 
+For deployment, set `wsTokenPath` in `config.yaml` to a read-only mounted token
+file under an Omega policy-readable path. `WS_TOKEN` remains a compatibility
+fallback when no file path is configured.
+
 ## Production boundary
 
 This spike proves that the upstream image can load both downstream extensions,

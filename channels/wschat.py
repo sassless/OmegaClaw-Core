@@ -264,6 +264,16 @@ def _resolve_connection_inputs(ws_url=None, ws_token=None):
     return resolved_url, resolved_token
 
 
+def _configured_ws_token():
+    token_path = str(config_get_by_key("wsTokenPath", "") or "").strip()
+    if not token_path:
+        return config_get_by_key("WS_TOKEN", "")
+    try:
+        return Path(token_path).read_text(encoding="utf-8").strip()
+    except OSError as error:
+        raise ValueError("WebSocket token file is not readable") from error
+
+
 def _build_resume_frame():
     with _msg_lock:
         return {"type": "resume", "last_seen_seq": _last_seen_seq}
@@ -633,7 +643,7 @@ class WSChannel(channels.CommChannel):
         super().__init__()
 
     def start(self) -> None:
-        start_websocket(config_get_by_key("WS_URL", ""), config_get_by_key("WS_TOKEN", ""))
+        start_websocket(config_get_by_key("WS_URL", ""), _configured_ws_token())
 
     def stop(self) -> None:
         stop_websocket()

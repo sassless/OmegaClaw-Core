@@ -123,3 +123,28 @@ def test_resume_frame_reflects_last_seen(wschat):
     assert wschat._build_resume_frame() == {"type": "resume", "last_seen_seq": None}
     wschat._last_seen_seq = 7
     assert wschat._build_resume_frame() == {"type": "resume", "last_seen_seq": 7}
+
+
+def test_channel_start_reads_token_from_configured_file(wschat, monkeypatch, tmp_path):
+    token_path = tmp_path / "ws-token"
+    token_path.write_text("mounted-secret\n", encoding="utf-8")
+    values = {
+        "WS_URL": "wss://space.example/ws",
+        "wsTokenPath": str(token_path),
+    }
+    started_with = []
+
+    monkeypatch.setattr(
+        wschat,
+        "config_get_by_key",
+        lambda key, default="": values.get(key, default),
+    )
+    monkeypatch.setattr(
+        wschat,
+        "start_websocket",
+        lambda url, token: started_with.append((url, token)),
+    )
+
+    wschat.WSChannel().start()
+
+    assert started_with == [("wss://space.example/ws", "mounted-secret")]
