@@ -2,6 +2,7 @@ import asyncio
 import base64
 import importlib.util
 import json
+import logging
 import sys
 import types
 from contextlib import asynccontextmanager
@@ -70,6 +71,41 @@ def test_empty_config_does_not_require_fork_command_alias_api(
     monkeypatch.delattr(petta_helper, "set_mcp_commands")
 
     assert mcp_client.get_tools_as_list() == []
+
+
+def test_mcp_config_can_be_loaded_from_configured_file(
+    monkeypatch, mcp_client, tmp_path
+):
+    config_path = tmp_path / "mcp.json"
+    config_path.write_text(
+        json.dumps(
+            {
+                "mcpServers": {
+                    "local": {
+                        "transport": "streamable-http",
+                        "url": "http://mcp.test/mcp",
+                    }
+                }
+            }
+        ),
+        encoding="utf-8",
+    )
+    monkeypatch.delenv("MCP_JSON_CONTENT", raising=False)
+    monkeypatch.setattr(
+        mcp_client,
+        "config_get_by_key",
+        lambda key, default="": str(config_path) if key == "mcpConfigPath" else default,
+    )
+
+    mcp_client._load_mcp_config_to_memory()
+
+    assert mcp_client.SERVERS_CONFIG_MAP == {
+        "local": {
+            "transport": "streamable-http",
+            "url": "http://mcp.test/mcp",
+        }
+    }
+    assert mcp_client._CONFIG_VALID is True
 
 
 def test_streamable_http_forwards_headers_to_the_backend_client(monkeypatch, mcp_client):

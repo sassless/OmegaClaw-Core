@@ -18,6 +18,7 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 
+from config import config_get_by_key
 import helper
 
 
@@ -26,8 +27,12 @@ logger = logging.getLogger(__name__)
 # Omega 2.0 exposes skills as structured tools, while its text fallback still
 # consults the helper command metadata. Older OmegaClaw versions already add
 # these entries statically, so set insertion keeps this compatible with both.
-helper.TWO_ARG_COMMANDS.add("call-mcp")
-helper.add_llm_command("call-mcp")
+if hasattr(helper, "TWO_ARG_COMMANDS"):
+    helper.TWO_ARG_COMMANDS.add("call-mcp")
+if hasattr(helper, "add_llm_command"):
+    helper.add_llm_command("call-mcp")
+elif hasattr(helper, "LLM_COMMANDS"):
+    helper.LLM_COMMANDS.add("call-mcp")
 
 CACHE_TTL_SECONDS = 300
 MCP_OPERATION_TIMEOUT_SECONDS = 30
@@ -67,7 +72,17 @@ def _load_mcp_config_to_memory() -> None:
     """Load MCP configuration without ever logging its potentially secret values."""
     global SERVERS_CONFIG_MAP, _CONFIG_VALID
 
-    raw_config = os.environ.get("MCP_JSON_CONTENT", "")
+    config_path = str(config_get_by_key("mcpConfigPath", "") or "").strip()
+    if config_path:
+        try:
+            raw_config = Path(config_path).read_text(encoding="utf-8")
+        except OSError as error:
+            SERVERS_CONFIG_MAP = {}
+            _CONFIG_VALID = False
+            logger.error("MCP configuration file is not readable (%s)", type(error).__name__)
+            return
+    else:
+        raw_config = os.environ.get("MCP_JSON_CONTENT", "")
     if not raw_config.strip():
         SERVERS_CONFIG_MAP = {}
         _CONFIG_VALID = True

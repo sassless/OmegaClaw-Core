@@ -1,0 +1,4 @@
+provider: Test
+commchannel: test
+embeddingprovider: Local
+mcpConfigPath: /PeTTa/repos/Omega/config/mcp.json

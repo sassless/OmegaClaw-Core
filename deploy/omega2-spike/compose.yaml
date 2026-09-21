@@ -12,9 +12,22 @@ services:
       - embeddingprovider=Local
     environment:
       IMPORT_KB_ON_START: "0"
+    depends_on:
+      - mcp-mock
     volumes:
+      - ./config/config.yaml:/PeTTa/repos/Omega/config/config.yaml:ro
       - ./config/plugins.yaml:/PeTTa/repos/Omega/config/plugins.yaml:ro
+      - ./config/mcp.json:/PeTTa/repos/Omega/config/mcp.json:ro
       - ../../plugins/mcp/mcp.metta:/opt/asi-omega/plugins/mcp/mcp.metta:ro
       - ../../plugins/mcp/mcp_client.py:/opt/asi-omega/plugins/mcp/mcp_client.py:ro
       - ../../channels/wschat.py:/opt/asi-omega/plugins/wschat/wschat.py:ro
       - ../../channels/chat_attachments.py:/opt/asi-omega/plugins/wschat/chat_attachments.py:ro
+
+  mcp-mock:
+    image: omega2-spike-omega:latest
+    init: true
+    entrypoint:
+      - python3
+      - /opt/asi-omega/spike/mcp_mock.py
+    volumes:
+      - ./mcp_mock.py:/opt/asi-omega/spike/mcp_mock.py:ro
