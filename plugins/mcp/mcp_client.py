@@ -18,6 +18,9 @@ from mcp import ClientSession
 from mcp.client.sse import sse_client
 from mcp.client.streamable_http import streamable_http_client
 
+from config import config_get_by_key
+
+
 _REPO_ROOT = Path(__file__).resolve().parents[2]
 if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
@@ -28,8 +31,8 @@ if str(_SRC_DIR) not in sys.path:
 import helper
 from src.logger import get_logger
 
-
 logger = get_logger(__name__)
+logger.info("--- MCP CLIENT MODULE IMPORTED ---")
 
 CACHE_TTL_SECONDS = 300
 MCP_OPERATION_TIMEOUT_SECONDS = 30
@@ -52,12 +55,20 @@ def _load_mcp_config_to_memory() -> None:
     """Load MCP configuration without ever logging its potentially secret values."""
     global SERVERS_CONFIG_MAP, _CONFIG_VALID
 
-    raw_config = os.environ.get("MCP_JSON_CONTENT", "")
+    logger.info("--- _load_mcp_config_to_memory() called ---")
+
+    raw_config = config_get_by_key("MCP_JSON_CONTENT", "")
+
+    logger.info("--- Fetched MCP_JSON_CONTENT. Type: %s, Length: %d ---", type(raw_config),
+                len(str(raw_config)))
+
     if not raw_config.strip():
+        logger.warning("--- [WARNING] raw_config is empty or contains only whitespaces! ---")
         SERVERS_CONFIG_MAP = {}
         _CONFIG_VALID = True
         return
 
+    logger.info("--- raw_config is not empty, attempting to parse JSON ---")
     try:
         parsed = json.loads(raw_config)
         servers = parsed.get("mcpServers", {})
@@ -69,12 +80,12 @@ def _load_mcp_config_to_memory() -> None:
     except (AttributeError, json.JSONDecodeError, TypeError, ValueError) as error:
         SERVERS_CONFIG_MAP = {}
         _CONFIG_VALID = False
-        logger.error("MCP configuration is invalid (%s)", type(error).__name__)
+        logger.error("--- [ERROR] MCP configuration is invalid (%s): %s ---", type(error).__name__, error)
         return
 
     SERVERS_CONFIG_MAP = servers
     _CONFIG_VALID = True
-    logger.info("Loaded MCP configuration for %d server(s)", len(servers))
+    logger.info("--- [INFO] Loaded MCP configuration for %d server(s) ---", len(servers))
 
 
 @asynccontextmanager
@@ -88,18 +99,18 @@ async def _connect_to_server(
         headers = {}
 
     if transport == "sse":
-        async with sse_client(url=url, headers=headers) as streams:
+        async with sse_client(url = url, headers = headers) as streams:
             yield streams[0], streams[1]
         return
 
     if transport == "streamable-http":
         async with httpx.AsyncClient(
-            headers=headers,
-            follow_redirects=True,
-            timeout=httpx.Timeout(MCP_OPERATION_TIMEOUT_SECONDS),
+            headers = headers,
+            follow_redirects = True,
+            timeout = httpx.Timeout(MCP_OPERATION_TIMEOUT_SECONDS),
         ) as http_client:
             async with streamable_http_client(
-                url, http_client=http_client
+                url, http_client = http_client
             ) as streams:
                 yield streams[0], streams[1]
         return
@@ -110,21 +121,32 @@ async def _connect_to_server(
 
 
 def _tool_description(tool: Any) -> str:
-    properties = getattr(tool, "inputSchema", {}).get("properties", {})
+    schema = getattr(tool, "inputSchema", None)
+    if schema is None:
+        schema = getattr(tool, "input_schema", {})
+
+    if not isinstance(schema, dict):
+        schema = {}
+
+    properties = schema.get("properties", {})
     if not isinstance(properties, dict):
         properties = {}
+
     arguments = json.dumps(
-        {name: f"<{name}>" for name in properties}, separators=(",", ":")
+        {name: f"<{name}>" for name in properties}, separators = (",", ":")
     )
+
+    name = getattr(tool, "name", "unknown_tool")
     description = getattr(tool, "description", None) or "No description"
-    return f"- {description}: call-mcp {tool.name} {arguments}"
+
+    return f"- {description}: call-mcp {name} {arguments}"
 
 
 async def _discover_and_map_server(
     server_name: str, config: dict[str, Any]
 ) -> list[str]:
     if not config.get("url"):
-        logger.warning("MCP server '%s' has no URL", server_name)
+        logger.warning("--- [WARNING] MCP server '%s' has no URL ---", server_name)
         return []
 
     try:
@@ -138,16 +160,16 @@ async def _discover_and_map_server(
             TOOL_ROUTING_MAP[tool.name] = server_name
             descriptions.append(_tool_description(tool))
         logger.info(
-            "Discovered %d MCP tool(s) from server '%s'",
+            "--- [INFO] Discovered %d MCP tool(s) from server '%s' ---",
             len(descriptions),
             server_name,
         )
         return descriptions
     except asyncio.TimeoutError:
-        logger.warning("MCP discovery timed out for server '%s'", server_name)
+        logger.warning("--- [WARNING] MCP discovery timed out for server '%s' ---", server_name)
     except Exception as error:
         logger.warning(
-            "MCP discovery failed for server '%s' (%s)",
+            "--- [WARNING] MCP discovery failed for server '%s' (%s) ---",
             server_name,
             type(error).__name__,
         )
@@ -164,7 +186,7 @@ async def _execute_tool_on_server(
         async with _connect_to_server(server_name, config) as (read, write):
             async with ClientSession(read, write) as session:
                 await session.initialize()
-                return await session.call_tool(tool_name, arguments=arguments)
+                return await session.call_tool(tool_name, arguments = arguments)
 
 
 def _run_async(coroutine: Any) -> Any:
@@ -173,6 +195,7 @@ def _run_async(coroutine: Any) -> Any:
 
 def _update_server_tools_if_needed(force_update: bool = False) -> None:
     global LAST_REFRESH_TIME, LAST_TOOL_LIST
+    logger.info("--- _update_server_tools_if_needed() called. force_update=%s ---", force_update)
 
     with _CACHE_LOCK:
         now = monotonic()
@@ -181,11 +204,15 @@ def _update_server_tools_if_needed(force_update: bool = False) -> None:
             and LAST_REFRESH_TIME is not None
             and now - LAST_REFRESH_TIME <= CACHE_TTL_SECONDS
         ):
+            logger.info("--- Cache is still valid. Skipping config refresh. ---")
             return
 
+        logger.info("--- Cache invalid or force_update=True. Triggering _load_mcp_config_to_memory(). ---")
         _load_mcp_config_to_memory()
         TOOL_ROUTING_MAP.clear()
+
         if not _CONFIG_VALID or not SERVERS_CONFIG_MAP:
+            logger.info("--- Config is invalid or SERVERS_CONFIG_MAP is empty. Clearing tools list. ---")
             LAST_TOOL_LIST = []
             LAST_REFRESH_TIME = now
             helper.set_mcp_commands(set())
@@ -203,14 +230,38 @@ def _update_server_tools_if_needed(force_update: bool = False) -> None:
         LAST_TOOL_LIST = [item for server_tools in discovered for item in server_tools]
         LAST_REFRESH_TIME = now
         helper.set_mcp_commands(TOOL_ROUTING_MAP)
+        logger.info(f"--- Discovery complete. Found {len(LAST_TOOL_LIST)} tools total across all servers: {list(LAST_TOOL_LIST)} ---")
 
 
-def get_tools_as_list() -> list[str]:
+HELPER_CONFIGURED = False
+
+def configure_helper():
+    logger.info(f"--- Try to configure helper ---")
+    global HELPER_CONFIGURED
+
+    if not HELPER_CONFIGURED:
+        logger.info(f"--- Configuring helper ---")
+        import helper
+
+        helper.TWO_ARG_COMMANDS.add("call-mcp")
+        helper.LLM_COMMANDS.add("call-mcp")
+        helper.STATIC_LLM_COMMANDS.add("call-mcp")
+
+        HELPER_CONFIGURED = True
+        logger.info(f"--- Helper configured ---")
+    else:
+        logger.info(f"--- Helper is already configured ---")
+
+
+def get_tools_as_list() -> str:
+    configure_helper()
+    logger.info("--- get_tools_as_list() called ---")
     _update_server_tools_if_needed()
     return list(LAST_TOOL_LIST)
 
 
 def get_tools_prompt() -> str:
+    logger.info("--- get_tools_prompt() called ---")
     tools = get_tools_as_list()
     if not tools:
         return ""
@@ -247,7 +298,7 @@ def _loads(arguments: str) -> Any:
         if "Invalid control character" not in str(error):
             raise
         # A wrapped base64 payload carries raw newlines inside the JSON string.
-        return json.loads(arguments, strict=False)
+        return json.loads(arguments, strict = False)
 
 
 def _parse_arguments(arguments: Any) -> dict[str, Any]:
@@ -287,21 +338,22 @@ def _format_successful_result(result: str) -> str:
 
 
 def call_tool(tool_name: str, arguments: Any = None) -> str:
+    logger.info("--- call_tool() called for '%s' ---", tool_name)
     try:
         parsed_arguments = _parse_arguments(arguments)
     except FileReferenceError as error:
-        logger.warning("MCP file reference is not readable")
+        logger.warning("--- [WARNING] MCP file reference is not readable ---")
         return f"Error: MCP file reference is not readable: {error}"
     except json.JSONDecodeError as error:
         if "Unterminated string" in str(error):
-            logger.warning("MCP tool arguments look truncated")
+            logger.warning("--- [WARNING] MCP tool arguments look truncated ---")
             return (
                 "Error: MCP tool arguments look truncated. " + FILE_REFERENCE_HINT
             )
-        logger.warning("Invalid MCP tool arguments (%s)", type(error).__name__)
+        logger.warning("--- [WARNING] Invalid MCP tool arguments (%s) ---", type(error).__name__)
         return "Error: MCP operation failed"
     except (TypeError, ValueError) as error:
-        logger.warning("Invalid MCP tool arguments (%s)", type(error).__name__)
+        logger.warning("--- [WARNING] Invalid MCP tool arguments (%s) ---", type(error).__name__)
         return "Error: MCP operation failed"
 
     _update_server_tools_if_needed()
@@ -323,14 +375,16 @@ def call_tool(tool_name: str, arguments: Any = None) -> str:
                 )
             )
             return _format_successful_result(result)
+            logger.info(f"--- call-tool result: {result} ---")
+            return result
         except asyncio.TimeoutError:
-            logger.warning("MCP tool call timed out")
+            logger.warning("--- [WARNING] MCP tool call timed out ---")
             return "Error: MCP operation timed out"
         except Exception as error:
             if attempt == 0 and _is_not_found(error):
-                _update_server_tools_if_needed(force_update=True)
+                _update_server_tools_if_needed(force_update = True)
                 continue
-            logger.warning("MCP tool call failed (%s)", type(error).__name__)
+            logger.warning("--- [WARNING] MCP tool call failed (%s) ---", type(error).__name__)
             return "Error: MCP operation failed"
 
     return "Error: MCP operation failed"

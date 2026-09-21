@@ -11,7 +11,7 @@ sleepInterval: 1
 # LLM model to load overrides *_model parameters see below
 #model: 
 # LLM provider, see the list below in the Providers section
-provider: Anthropic
+provider: ASICloud
 # Output cap passed to the provider
 maxOutputToken: 6000
 # Reasoning-effort hint passed to the provider
@@ -22,7 +22,7 @@ wakeupInterval: 600
 # See https://docs.python.org/3/library/logging.config.html#configuration-file-format
 logConfigPath: ""
 # (internal) Path to the memory directory
-#memoryDirectory: "./"
+memoryDirectory: "./"
 
 # Memory
 
@@ -52,7 +52,7 @@ commchannel: irc
 
 # IRC
 # IRC channel to join 
-IRC_channel: "##omegaclaw"
+IRC_channel: "##test_mcp_plugin"
 # IRC server hostname
 IRC_server: "irc.quakenet.org"
 # IRC port
@@ -88,7 +88,7 @@ WS_TOKEN: ""
 
 # OpenAIAPI
 # Name of the API key variable to read
-api_token_var: "OPENAIAPI_API_KEY"
+api_token_var: "ASI_API_KEY"
 # LLM endpoint URL.
 openaiapi_url: "http://localhost:11434/v1/"
 # Default model
@@ -97,6 +97,8 @@ openaiapi_model: "qwen3.5:9b"
 # ASICloud
 # Default model
 asicloud_model: "minimax/minimax-m3"
+
+ASI_API_KEY: ""
 
 # Anthropic
 # Default model
@@ -138,3 +140,5 @@ TAVILY_SEARCH_AGENT_ADDRESS: "agent1qt5uffgp0l3h9mqed8zh8vy5vs374jl2f8y0mjjvqm44
 # Path to the directory to keep workflow working files when workflow is active.
 # Default value is <memoryDirectory>/workflow_space
 #pluginWorkflowMemoryDir: ./memory/workflow_space
+
+MCP_JSON_CONTENT: {"mcpServers": {"asi-create": {"transport": "streamable-http", "url": "https://dev.api.asicreate.io/mcp-service/mcp", "headers": {"Authorization": ""}}}}

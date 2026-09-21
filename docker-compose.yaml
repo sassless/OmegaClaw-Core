@@ -1,0 +1,57 @@
+services:
+  omegaclaw:
+#    image: singularitynet/omegaclaw:9890bcb8041598fc6a4f1d8e658b8306a204cc87
+    build: .
+    container_name: omegaclaw
+    init: true
+    stdin_open: true
+    tty: true
+    security_opt:
+      - no-new-privileges:true
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+
+    environment:
+#      - OMEGACLAW_AUTH_SECRET=0000
+#      - IMPORT_KB_ON_START=0
+#
+      - ASI_API_KEY=
+#      # - OPENAI_API_KEY=
+#      # - ANTHROPIC_API_KEY=
+##      - ASIONE_API_KEY=
+#      # - OPENROUTER_API_KEY=
+#
+    command:
+#      - "commchannel=irc"
+      - "provider=ASICloud"
+#      - "embeddingprovider=Local"
+#      - "IRC_channel=##test_plugin"
+
+    volumes:
+      - type: tmpfs
+        target: /tmp
+        tmpfs:
+          size: 64m
+          mode: 01777
+      - type: tmpfs
+        target: /var/tmp
+        tmpfs:
+          size: 64m
+          mode: 01777
+      - type: tmpfs
+        target: /run
+        tmpfs:
+          size: 16m
+          mode: 0755
+
+      - omegaclaw-memory:/PeTTa/repos/OmegaClaw-Core/memory
+      - ./config:/PeTTa/repos/OmegaClaw-Core/config
+      - ./plugins:/PeTTa/repos/OmegaClaw-Core/plugins
+
+    # env_file:
+    #   - .env
+
+    restart: unless-stopped
+
+volumes:
+  omegaclaw-memory:
