@@ -27,9 +27,8 @@
 
 (= (initKnowledge)
    (progn (log INFO "loop" "Initializing knowledge base")
-          (if (== (embeddingprovider) OpenAI)
-               (log INFO "loop" (py-call (rag.init_knowledge "OpenAI")))
-               (log INFO "loop" (py-call (rag.init_knowledge "Local"))))))
+          (log INFO "loop" (py-call (rag.init_knowledge (embeddingprovider))))
+          ()))
 
 (= (getPrompt)
    (let $content (string-safe (py-str ("PROMPT: " (getPrompt (provider))
