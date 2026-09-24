@@ -19,10 +19,6 @@ agent and their output is observed on the test comm channel.
                   skill; the confirmation on the channel and the project tree
                   written under the memory volume prove a second MarkDown
                   workflow works end to end.
-  - extensions-hub: load the Omega Cloud workflow with the Agent Extensions
-                  Hub and attachment rules. The plugin confirms the load only
-                  after SKILL.md is in the prompt and skill.metta has been
-                  imported, so the confirmation proves both files are found.
 
 Run:
     pytest test_workflow_plugin_mock.py -s
@@ -110,7 +106,7 @@ class TestWorkflowPlugin:
             prompt2 = make_prompt(skill_id, "Continue the workflow: perform step 1.")
             llm.set_answer(
                 prompt2,
-                f'({WORKFLOW_SKILL} "{DEMO_MESSAGE}") (workflow-unload-instructions)',
+                f'({WORKFLOW_SKILL} "{DEMO_MESSAGE}")\n(workflow-unload-instructions)',
             )
             if not comm.send_message(prompt2):
                 c.fail("comm-2", "could not deliver turn 2 prompt within 60s")
@@ -120,6 +116,12 @@ class TestWorkflowPlugin:
                        f"{WORKFLOW_SKILL} did not deliver its message; the "
                        "workflow skill was not registered/executed")
             c.ok("test-skill executed", f"{echoed[:80]!r}")
+
+            unloaded = _recv_contains(comm, "Unloaded workflow:", timeout=60)
+            if unloaded is None or WORKFLOW not in unloaded:
+                c.fail("workflow unloaded",
+                       f"agent never confirmed unloading {WORKFLOW}: {unloaded!r}")
+            c.ok("workflow unloaded", f"{unloaded[:80]!r}")
 
             c.done()
 
@@ -229,6 +231,7 @@ class TestWorkflowPlugin:
             c.add_cleanup_marker(str(c.run_id + 1))
             _flush(comm)
             loaded_line = f"Workflow skills loaded: {EXTENSIONS_HUB_WORKFLOW}"
+            unloaded_line = f"Workflow skills unloaded: [^\"\\n]*{EXTENSIONS_HUB_WORKFLOW}"
 
             c.step("turn 1: load the extensions-hub instructions")
             loaded_before = _history_count(loaded_line)
@@ -252,12 +255,24 @@ class TestWorkflowPlugin:
                        f"{loaded_after - loaded_before} history lines for one load")
             c.ok("load logged once", loaded_line)
 
+            c.step("turn 2: unload the workflow")
+            unloaded_before = _history_count(unloaded_line)
             time.sleep(5)
             prompt2 = make_prompt(c.run_id + 1, "Thanks, that is all.")
             llm.set_answer(prompt2, "(workflow-unload-instructions)")
             if not comm.send_message(prompt2):
                 c.fail("comm-2", "could not deliver turn 2 prompt within 60s")
-            time.sleep(12)
-            _flush(comm)
+            unloaded = _recv_contains(comm, "Unloaded workflow:", timeout=60)
+            if unloaded is None or EXTENSIONS_HUB_WORKFLOW not in unloaded:
+                c.fail("workflow unloaded",
+                       f"agent never confirmed unloading {EXTENSIONS_HUB_WORKFLOW}: "
+                       f"{unloaded!r}")
+            c.ok("workflow unloaded", f"{unloaded[:80]!r}")
+
+            unloaded_after = _history_count_after(unloaded_line, unloaded_before)
+            if unloaded_after != unloaded_before + 1:
+                c.fail("unload logged once",
+                       f"{unloaded_after - unloaded_before} history lines for one unload")
+            c.ok("unload logged once", "Workflow skills unloaded")
 
             c.done()

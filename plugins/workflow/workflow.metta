@@ -53,6 +53,7 @@
                 (let $content (read-file $path)
                      (progn
                        (add-prompt-extension workflow_active_instructions (active-instructions $content))
+                       (add-atom &self (workflow-active $name))
                        (add-workflow-skills $name)
                        (send (strings-concat ("Loaded workflow: " $name
                                      ". Instructions active in context until completion.")))
@@ -61,17 +62,19 @@
                        ))))))
 
 (= (workflow-unload-instructions)
-   (progn (remove-prompt-extension workflow_active_instructions)
-          (unload-workflow-skills)
-          (send (strings-concat ("Unloaded workflow: " $name)))
-          (appendToHistory  ((get_time_as_string) (newline)
-               (strings-concat ("Workflow skills unloaded: " $name)) (newline)))
-          ))
+   (let $names (join ", " (collapse (match &self (workflow-active $active) $active)))
+     (progn (remove-prompt-extension workflow_active_instructions)
+            (collapse (match &self (workflow-active $loaded) (remove-atom &self (workflow-active $loaded))))
+            (unload-workflow-skills)
+            (send (strings-concat ("Unloaded workflow: " $names)))
+            (appendToHistory  ((get_time_as_string) (newline)
+                 (strings-concat ("Workflow skills unloaded: " $names)) (newline)))
+            )))
 
 (= (active-instructions $content)
    (strings-concat (" ACTIVE_WORKFLOW_INSTRUCTIONS: " $content
             " FOLLOW THESE INSTRUCTIONS UNTIL THE WORKFLOW IS COMPLETE"
-            " AND YOU CALL (unload-instructions) OR THE WORKFLOW CALLS ITS COMPLETION FUNCTION."
+            " AND YOU CALL (workflow-unload-instructions) OR THE WORKFLOW CALLS ITS COMPLETION FUNCTION."
             " EXECUTE ONLY COMMANDS YOU DEEM SAFE; OTHERWISE SKIP OR ASK THE USER.")))
 
 ; to load skills descriptions which are defined only for current workflow
@@ -86,7 +89,7 @@
 ; to load skills descriptions
 (= (unload-workflow-skills)
    (progn
-     (match &workflow_skills (skill $func $desc $args) (remove-skill $func))
+     (collapse (match &workflow_skills (skill $func $desc $args) (remove-skill $func)))
      (remove-all-atoms &workflow_skills)))
 
 (= (workflow-change-active-instructions $content)
