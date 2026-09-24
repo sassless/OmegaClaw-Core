@@ -9,7 +9,7 @@
      (if (not (exists-directory (pluginWorkflowInstructionsDir)))
        (Error (_loadOmegaClawPlugin) (strings-concat ("Instructions directory: " (pluginWorkflowInstructionsDir) " doesn't exist")))
        (progn 
-         (configure pluginWorkflowMemoryDir (joinPath ((memoryDirectory) workflow_space)))
+         (configure pluginWorkflowMemoryDir (joinPath ((projectRootDirectory) "memory" "workflow_space")))
          (log INFO "workflow-plugin" (strings-concat ("Creating working directory: " (pluginWorkflowMemoryDir))))
          (let $rc (make-directory (pluginWorkflowMemoryDir)) ())
          (if (exists-directory (pluginWorkflowMemoryDir))
