@@ -19,6 +19,10 @@ agent and their output is observed on the test comm channel.
                   skill; the confirmation on the channel and the project tree
                   written under the memory volume prove a second MarkDown
                   workflow works end to end.
+  - extensions-hub: load the Omega Cloud workflow with the Agent Extensions
+                  Hub and attachment rules. The plugin confirms the load only
+                  after SKILL.md is in the prompt and skill.metta has been
+                  imported, so the confirmation proves both files are found.
 
 Run:
     pytest test_workflow_plugin_mock.py -s
@@ -34,6 +38,8 @@ DEMO_MESSAGE = "This is a test workflow demonstration"
 RESEARCH_WORKFLOW = "research-workflow"
 RESEARCH_DIR = "/PeTTa/repos/OmegaClaw-Core/memory/workflow_space/research"
 RESEARCH_NAME = "qa-research-autotest"
+
+EXTENSIONS_HUB_WORKFLOW = "extensions-hub"
 
 
 def _flush(comm):
@@ -197,5 +203,38 @@ class TestWorkflowPlugin:
                 if dexec("test", "-d", f"{project}/{sub}").returncode != 0:
                     c.fail("project dirs", f"{sub}/ not created")
             c.ok("project dirs", "src/ data/ runs/ figures/ present")
+
+            c.done()
+
+    def test_extensions_hub_workflow(self, llm, comm):
+        with Checker("extensions-hub workflow load (mock)") as c:
+            print(f"\n=== OmegaClaw: extensions-hub workflow (run-id {c.run_id}) ===",
+                  flush=True)
+            c.add_cleanup_marker(str(c.run_id))
+            c.add_cleanup_marker(str(c.run_id + 1))
+            _flush(comm)
+
+            c.step("turn 1: load the extensions-hub instructions")
+            prompt1 = make_prompt(c.run_id, "What is the Extensions Hub?")
+            llm.set_answer(
+                prompt1, f'(workflow-load-instructions "{EXTENSIONS_HUB_WORKFLOW}")'
+            )
+            if not comm.send_message(prompt1):
+                c.fail("comm-1", "could not deliver turn 1 prompt within 60s")
+            loaded = _recv_contains(
+                comm, f"Loaded workflow: {EXTENSIONS_HUB_WORKFLOW}", timeout=60
+            )
+            if loaded is None:
+                c.fail("workflow loaded",
+                       f"agent never confirmed loading {EXTENSIONS_HUB_WORKFLOW}")
+            c.ok("workflow loaded", f"{loaded[:80]!r}")
+
+            time.sleep(5)
+            prompt2 = make_prompt(c.run_id + 1, "Thanks, that is all.")
+            llm.set_answer(prompt2, "(workflow-unload-instructions)")
+            if not comm.send_message(prompt2):
+                c.fail("comm-2", "could not deliver turn 2 prompt within 60s")
+            time.sleep(12)
+            _flush(comm)
 
             c.done()

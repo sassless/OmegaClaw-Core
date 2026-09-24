@@ -22,3 +22,4 @@
 !(loadMettaPlugin "workflow" "./plugins/workflow")
 
 !(test (contains-text (getPromptExtensions) "Available workflows") True)
+!(test (contains-text (getPromptExtensions) "extensions-hub: ") True)
