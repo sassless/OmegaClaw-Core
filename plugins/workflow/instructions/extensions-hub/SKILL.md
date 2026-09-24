@@ -83,7 +83,9 @@ job.
 ## Pipeline
 
 Do the steps in order and do not ask the user for permission between them. The
-MCP tool list in your context shows the arguments of each tool.
+MCP tool list in your context shows the arguments of each tool. A step needs
+values from the result of the previous one, such as `agent_uuid` or
+`chat_uuid`, so wait for that result instead of writing a placeholder.
 
 1. Find the extension. Call `call-mcp get_published_agents {}` without a
    search term. The reply is a page with `total_items`, `total_pages`, `page`
@@ -118,9 +120,11 @@ reports COMPLETED, then reply as in step 4.
 ## Cold start
 
 An idle extension shuts down, and the first call starts it, which takes about
-five minutes. The call is cut off after 30 seconds, so the first attempt
-usually fails with `Network Error: Unable to connect to the internal service`.
-The extension is starting, it is not broken.
+five minutes. The call is cut off after 30 seconds, so the first attempts
+usually fail with `Error: MCP operation timed out` or `Network Error: Unable to
+connect to the internal service`. The extension is starting, it is not broken.
+A call that failed this way is over: no answer comes for it later, and nothing
+is pending until you call again.
 
 1. Tell the user once: "The extension is starting, this takes a few minutes."
 2. Repeat the same call with the same arguments once at least 60 seconds have
