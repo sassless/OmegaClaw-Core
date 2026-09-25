@@ -23,6 +23,7 @@ agent and their output is observed on the test comm channel.
 Run:
     pytest test_workflow_plugin_mock.py -s
 """
+import re
 import time
 
 from helpers import Checker, dexec, make_prompt
@@ -34,6 +35,9 @@ DEMO_MESSAGE = "This is a test workflow demonstration"
 RESEARCH_WORKFLOW = "research-workflow"
 RESEARCH_DIR = "/PeTTa/repos/OmegaClaw-Core/memory/workflow_space/research"
 RESEARCH_NAME = "qa-research-autotest"
+
+EXTENSIONS_HUB_WORKFLOW = "extensions-hub"
+HISTORY_FILE = "/PeTTa/repos/OmegaClaw-Core/memory/history.metta"
 
 
 def _flush(comm):
@@ -54,6 +58,19 @@ def _recv_contains(comm, needle, timeout=60):
             continue
         time.sleep(0.5)
     return None
+
+
+def _history_count(pattern):
+    res = dexec("cat", HISTORY_FILE)
+    return len(re.findall(pattern, res.stdout)) if res.returncode == 0 else 0
+
+
+def _history_count_after(pattern, before, timeout=15):
+    deadline = time.time() + timeout
+    while time.time() < deadline and _history_count(pattern) <= before:
+        time.sleep(0.5)
+    time.sleep(3)
+    return _history_count(pattern)
 
 
 class TestWorkflowPlugin:
@@ -89,7 +106,7 @@ class TestWorkflowPlugin:
             prompt2 = make_prompt(skill_id, "Continue the workflow: perform step 1.")
             llm.set_answer(
                 prompt2,
-                f'({WORKFLOW_SKILL} "{DEMO_MESSAGE}") (workflow-unload-instructions)',
+                f'({WORKFLOW_SKILL} "{DEMO_MESSAGE}")\n(workflow-unload-instructions)',
             )
             if not comm.send_message(prompt2):
                 c.fail("comm-2", "could not deliver turn 2 prompt within 60s")
@@ -99,6 +116,12 @@ class TestWorkflowPlugin:
                        f"{WORKFLOW_SKILL} did not deliver its message; the "
                        "workflow skill was not registered/executed")
             c.ok("test-skill executed", f"{echoed[:80]!r}")
+
+            unloaded = _recv_contains(comm, "Unloaded workflow:", timeout=60)
+            if unloaded is None or WORKFLOW not in unloaded:
+                c.fail("workflow unloaded",
+                       f"agent never confirmed unloading {WORKFLOW}: {unloaded!r}")
+            c.ok("workflow unloaded", f"{unloaded[:80]!r}")
 
             c.done()
 
@@ -197,5 +220,59 @@ class TestWorkflowPlugin:
                 if dexec("test", "-d", f"{project}/{sub}").returncode != 0:
                     c.fail("project dirs", f"{sub}/ not created")
             c.ok("project dirs", "src/ data/ runs/ figures/ present")
+
+            c.done()
+
+    def test_extensions_hub_workflow(self, llm, comm):
+        with Checker("extensions-hub workflow load (mock)") as c:
+            print(f"\n=== OmegaClaw: extensions-hub workflow (run-id {c.run_id}) ===",
+                  flush=True)
+            c.add_cleanup_marker(str(c.run_id))
+            c.add_cleanup_marker(str(c.run_id + 1))
+            _flush(comm)
+            loaded_line = f"Workflow skills loaded: {EXTENSIONS_HUB_WORKFLOW}"
+            unloaded_line = f"Workflow skills unloaded: [^\"\\n]*{EXTENSIONS_HUB_WORKFLOW}"
+
+            c.step("turn 1: load the extensions-hub instructions")
+            loaded_before = _history_count(loaded_line)
+            prompt1 = make_prompt(c.run_id, "What is the Extensions Hub?")
+            llm.set_answer(
+                prompt1, f'(workflow-load-instructions "{EXTENSIONS_HUB_WORKFLOW}")'
+            )
+            if not comm.send_message(prompt1):
+                c.fail("comm-1", "could not deliver turn 1 prompt within 60s")
+            loaded = _recv_contains(
+                comm, f"Loaded workflow: {EXTENSIONS_HUB_WORKFLOW}", timeout=60
+            )
+            if loaded is None:
+                c.fail("workflow loaded",
+                       f"agent never confirmed loading {EXTENSIONS_HUB_WORKFLOW}")
+            c.ok("workflow loaded", f"{loaded[:80]!r}")
+
+            loaded_after = _history_count_after(loaded_line, loaded_before)
+            if loaded_after != loaded_before + 1:
+                c.fail("load logged once",
+                       f"{loaded_after - loaded_before} history lines for one load")
+            c.ok("load logged once", loaded_line)
+
+            c.step("turn 2: unload the workflow")
+            unloaded_before = _history_count(unloaded_line)
+            time.sleep(5)
+            prompt2 = make_prompt(c.run_id + 1, "Thanks, that is all.")
+            llm.set_answer(prompt2, "(workflow-unload-instructions)")
+            if not comm.send_message(prompt2):
+                c.fail("comm-2", "could not deliver turn 2 prompt within 60s")
+            unloaded = _recv_contains(comm, "Unloaded workflow:", timeout=60)
+            if unloaded is None or EXTENSIONS_HUB_WORKFLOW not in unloaded:
+                c.fail("workflow unloaded",
+                       f"agent never confirmed unloading {EXTENSIONS_HUB_WORKFLOW}: "
+                       f"{unloaded!r}")
+            c.ok("workflow unloaded", f"{unloaded[:80]!r}")
+
+            unloaded_after = _history_count_after(unloaded_line, unloaded_before)
+            if unloaded_after != unloaded_before + 1:
+                c.fail("unload logged once",
+                       f"{unloaded_after - unloaded_before} history lines for one unload")
+            c.ok("unload logged once", "Workflow skills unloaded")
 
             c.done()

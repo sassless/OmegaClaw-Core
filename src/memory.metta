@@ -48,7 +48,9 @@
        (py-call (rag.openai_embed (string-safe $str)))))
 
 (= (appendToHistory $addition)
-   (append-file-raw (library OmegaClaw-Core ./memory/history.metta) (swrite $addition)))
+   (let $file (library OmegaClaw-Core ./memory/history.metta)
+     (let $temp (cut)
+       (append-file-raw $file (swrite $addition)))))
 
 (= (remember $str)
    (progn (py-call (lib_chromadb.remember $str (embed $str) (get_time_as_string)))

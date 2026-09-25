@@ -35,6 +35,8 @@ LLM_COMMANDS = {
     "get-mcp-tools",
     "call-mcp",
     "write-file-b64",
+    "workflow-load-instructions",
+    "workflow-unload-instructions",
 }
 TWO_ARG_COMMANDS = {
     "write-file",
