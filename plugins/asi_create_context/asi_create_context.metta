@@ -5,7 +5,7 @@
    (let $text (py-call (context_file.read_context (asi-create-context-path)))
      (if (== $text "") (empty) $text)))
 
-(= (loadOmegaClawPlugin)
+(= (loadAsiCreateContextPlugin)
    (let $path (asi-create-context-path)
      (progn
        (log INFO "asi_create_context"
@@ -15,3 +15,6 @@
             (let $text (py-call (context_file.read_context $path))
               (if (== $text "") (empty) $text))))
        ())))
+
+(= (loadOmegaPlugin) (loadAsiCreateContextPlugin))
+(= (loadOmegaClawPlugin) (loadAsiCreateContextPlugin))

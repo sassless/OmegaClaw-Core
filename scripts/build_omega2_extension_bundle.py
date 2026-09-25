@@ -15,10 +15,15 @@ RELEASE_ROOT = REPO_ROOT / "extensions" / "omega2"
 PACKAGE_NAME = "asi-omega-extensions"
 SOURCE_FILES = {
     "config/plugins.yaml": REPO_ROOT / "deploy" / "omega2" / "config" / "plugins.yaml",
+    "memory/prompt.txt": REPO_ROOT / "memory" / "prompt.txt",
+    "memory/prompt_ASICloud.txt": REPO_ROOT / "memory" / "prompt_ASICloud.txt",
     "plugins/mcp/mcp.metta": REPO_ROOT / "plugins" / "mcp" / "mcp.metta",
     "plugins/mcp/mcp_client.py": REPO_ROOT / "plugins" / "mcp" / "mcp_client.py",
-    "plugins/wschat/chat_attachments.py": REPO_ROOT / "channels" / "chat_attachments.py",
-    "plugins/wschat/wschat.py": REPO_ROOT / "channels" / "wschat.py",
+    "plugins/asi_create_context/asi_create_context.metta": REPO_ROOT / "plugins" / "asi_create_context" / "asi_create_context.metta",
+    "plugins/asi_create_context/context_file.py": REPO_ROOT / "plugins" / "asi_create_context" / "context_file.py",
+    "plugins/wschat/chat_attachments.py": REPO_ROOT / "plugins" / "wschat" / "chat_attachments.py",
+    "plugins/wschat/asi_wschat.py": REPO_ROOT / "plugins" / "wschat" / "asi_wschat.py",
+    "plugins/wschat/wschat.metta": REPO_ROOT / "plugins" / "wschat" / "wschat.metta",
     "requirements.txt": REPO_ROOT / "deploy" / "omega2" / "requirements.txt",
 }
 

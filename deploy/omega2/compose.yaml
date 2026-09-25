@@ -22,14 +22,19 @@ services:
       - wsTokenPath=/PeTTa/repos/Omega/config/private/ws-token
     volumes:
       - omega-memory:/PeTTa/repos/Omega/memory
+      - ../../memory/prompt.txt:/PeTTa/repos/Omega/memory/prompt.txt:ro
+      - ../../memory/prompt_ASICloud.txt:/PeTTa/repos/Omega/memory/prompt_ASICloud.txt:ro
       - ./config/config.yaml:/PeTTa/repos/Omega/config/config.yaml:ro
       - ./config/plugins.yaml:/PeTTa/repos/Omega/config/plugins.yaml:ro
       - ${OMEGA_MCP_CONFIG_FILE:?Set OMEGA_MCP_CONFIG_FILE to an MCP JSON file}:/PeTTa/repos/Omega/config/private/mcp.json:ro
       - ${OMEGA_WS_TOKEN_FILE:?Set OMEGA_WS_TOKEN_FILE to a WebSocket token file}:/PeTTa/repos/Omega/config/private/ws-token:ro
       - ../../plugins/mcp/mcp.metta:/opt/asi-omega/plugins/mcp/mcp.metta:ro
       - ../../plugins/mcp/mcp_client.py:/opt/asi-omega/plugins/mcp/mcp_client.py:ro
-      - ../../channels/wschat.py:/opt/asi-omega/plugins/wschat/wschat.py:ro
-      - ../../channels/chat_attachments.py:/opt/asi-omega/plugins/wschat/chat_attachments.py:ro
+      - ../../plugins/wschat/asi_wschat.py:/opt/asi-omega/plugins/wschat/asi_wschat.py:ro
+      - ../../plugins/wschat/chat_attachments.py:/opt/asi-omega/plugins/wschat/chat_attachments.py:ro
+      - ../../plugins/wschat/wschat.metta:/opt/asi-omega/plugins/wschat/wschat.metta:ro
+      - ../../plugins/asi_create_context/asi_create_context.metta:/opt/asi-omega/plugins/asi_create_context/asi_create_context.metta:ro
+      - ../../plugins/asi_create_context/context_file.py:/opt/asi-omega/plugins/asi_create_context/context_file.py:ro
 
 volumes:
   omega-memory:

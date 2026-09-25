@@ -1,4 +1,6 @@
 import importlib.util
+import sys
+import types
 from pathlib import Path
 
 import pytest
@@ -36,6 +38,19 @@ def test_context_path_uses_the_repository_memory_directory(
     assert context_file_module.context_path(tmp_path) == str(
         (MODULE_PATH.parents[2] / "memory" / "asi_create_context.txt").resolve()
     )
+
+
+def test_context_path_can_use_mounted_omega_memory_file(
+    tmp_path, context_file_module, monkeypatch
+):
+    configured_path = tmp_path / "memory" / "asi_create_context.txt"
+    config = types.ModuleType("config")
+    config.config_get_by_key = lambda key, default: (
+        str(configured_path) if key == "asiCreateContextPath" else default
+    )
+    monkeypatch.setitem(sys.modules, "config", config)
+
+    assert context_file_module.context_path("unused") == str(configured_path.resolve())
 
 
 def test_context_is_read_again_after_atomic_replacement(tmp_path, context_file_module):

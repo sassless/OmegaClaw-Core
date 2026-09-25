@@ -38,9 +38,13 @@ tool directly. MCP server definitions are read from the mounted
 The spike starts a local no-credential MCP server with an `echo` tool so
 discovery and invocation can be verified without an external service.
 
-The `wschat` registry entry points to the mounted `channels/wschat.py` and
-`channels/chat_attachments.py` files. The channel remains inactive in this
-smoke test because `commchannel=test`; selecting `commchannel=wschat` requires
+The `asi_create_context` plugin also loads. Its configured file lives in the
+memory directory; when absent, it contributes no prompt text.
+
+The `wschat` MeTTa plugin registers the mounted Python channel and adds the
+`send-attachment attachment_id message` skill. Its code is in `plugins/wschat/`;
+the channel remains inactive in this smoke test because `commchannel=test`.
+Selecting `commchannel=websocket` requires
 `WS_URL` and, when the server requires it, `WS_TOKEN`.
 
 For deployment, set `wsTokenPath` in `config.yaml` to a read-only mounted token

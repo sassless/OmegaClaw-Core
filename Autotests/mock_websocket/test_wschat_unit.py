@@ -119,6 +119,24 @@ def test_outbox_buffers_while_disconnected_and_flushes(wschat):
     assert flushed["client_seq"] == original_client_seq
 
 
+def test_attachment_skill_sends_one_use_id_once(wschat):
+    wschat._running = True
+    wschat._skill_sent_attachments.clear()
+
+    assert wschat.send_attachment_skill("uploaded-id", "Here is the file") is True
+    assert wschat.send_attachment_skill("uploaded-id", "Here is the file") is True
+    assert wschat.send_attachment_skill("uploaded-id", "Different text") is False
+    assert len(wschat._outbox) == 1
+    assert wschat._outbox[0]["attachments"] == [{"id": "uploaded-id"}]
+
+
+def test_attachment_skill_rejects_inactive_channel(wschat):
+    wschat._skill_sent_attachments.clear()
+
+    assert wschat.send_attachment_skill("uploaded-id", "Here is the file") is False
+    assert not wschat._outbox
+
+
 def test_resume_frame_reflects_last_seen(wschat):
     assert wschat._build_resume_frame() == {"type": "resume", "last_seen_seq": None}
     wschat._last_seen_seq = 7

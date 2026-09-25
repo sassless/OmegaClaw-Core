@@ -1,7 +1,7 @@
 {
   "schema_version": 1,
   "name": "asi-omega-extensions",
-  "version": "0.1.0",
+  "version": "0.1.3",
   "omega": {
     "image": "singularitynet/omega@sha256:2bf10b939b8280e57f7a8e81cc766df90ed22c455f945eb8de099284f67f3bce",
     "commit": "6e9f0fbb944b64d15a4ee5b668be874619d9378a"
@@ -14,10 +14,16 @@
     },
     {
       "name": "wschat",
-      "loader": "python",
+      "loader": "metta",
       "path": "plugins/wschat"
+    },
+    {
+      "name": "asi_create_context",
+      "loader": "metta",
+      "path": "plugins/asi_create_context"
     }
   ],
   "plugin_registry": "config/plugins.yaml",
+  "prompt_files": ["memory/prompt.txt", "memory/prompt_ASICloud.txt"],
   "requirements": "requirements.txt"
 }

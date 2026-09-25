@@ -19,7 +19,7 @@
   location: "{REPO}/channels"
 
 - name: wschat
-  loader: python
+  loader: metta
   location: "/opt/asi-omega/plugins/wschat"
 
 - name: openaiapi
@@ -53,3 +53,7 @@
 - name: mcp
   loader: metta
   location: "/opt/asi-omega/plugins/mcp"
+
+- name: asi_create_context
+  loader: metta
+  location: "/opt/asi-omega/plugins/asi_create_context"
