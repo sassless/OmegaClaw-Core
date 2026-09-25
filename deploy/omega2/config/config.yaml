@@ -3,4 +3,5 @@ commchannel: websocket
 embeddingprovider: Local
 mcpConfigPath: /PeTTa/repos/Omega/config/private/mcp.json
 wsTokenPath: /PeTTa/repos/Omega/config/private/ws-token
+wschatManageStartupMessages: true
 asiCreateContextPath: /PeTTa/repos/Omega/memory/asi_create_context.txt

@@ -8,6 +8,8 @@ The WebSocket extension is loaded as a MeTTa plugin. It registers the Python
 channel and the `send-attachment attachment_id message` skill through Omega's
 plugin API, so sending an uploaded file does not require changes to upstream
 `src/channels.py` or `src/skills.metta`. Its source is in `plugins/wschat/`.
+The deployment enables `wschatManageStartupMessages` so this channel sends the
+Omega Cloud greeting and suppresses Omega's automatic startup version message.
 
 The `asi_create_context` plugin reads
 `/PeTTa/repos/Omega/memory/asi_create_context.txt` from the persistent memory

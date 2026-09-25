@@ -80,6 +80,11 @@ except ModuleNotFoundError:
 
 logger = get_logger(__name__)
 
+WELCOME_MESSAGE = (
+    "Welcome to Omega Cloud! I'm your Omega agent, delighted to assist you. "
+    "To get started, simply type a message in the chat – I'm all yours!"
+)
+
 # Omega's text fallback needs to parse the id and message as separate arguments.
 if hasattr(helper, "TWO_ARG_COMMANDS"):
     helper.TWO_ARG_COMMANDS.add("send-attachment")
@@ -669,9 +674,15 @@ class WSChannel(channels.CommChannel):
 
     def __init__(self):
         super().__init__()
+        self._startup_version = None
 
     def start(self) -> None:
-        start_websocket(config_get_by_key("WS_URL", ""), _configured_ws_token())
+        manage_startup = config_get_by_key("wschatManageStartupMessages", False) is True
+        version = getattr(helper, "omega_version", None) if manage_startup else None
+        self._startup_version = version() if callable(version) else None
+        started = start_websocket(config_get_by_key("WS_URL", ""), _configured_ws_token())
+        if started and manage_startup:
+            send_message(WELCOME_MESSAGE)
 
     def stop(self) -> None:
         stop_websocket()
@@ -680,6 +691,10 @@ class WSChannel(channels.CommChannel):
         return getLastMessage()
 
     def send(self, message: str) -> None:
+        startup_version = self._startup_version
+        self._startup_version = None
+        if startup_version is not None and message == startup_version:
+            return
         send_message(message)
 
     def send_attachment(self, attachment_id: str, message: str) -> bool:

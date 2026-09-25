@@ -39,11 +39,11 @@ def _build_bundle(output_dir: Path) -> tuple[Path, Path]:
 def test_bundle_contains_versioned_runtime_contract(tmp_path):
     archive_path, checksum_path = _build_bundle(tmp_path)
 
-    assert archive_path.name == "asi-omega-extensions-0.1.3.tar.gz"
+    assert archive_path.name == "asi-omega-extensions-0.1.4.tar.gz"
     assert checksum_path.name == f"{archive_path.name}.sha256"
 
     with tarfile.open(archive_path, "r:gz") as archive:
-        root = "asi-omega-extensions-0.1.3"
+        root = "asi-omega-extensions-0.1.4"
         members = {
             member.name.removeprefix(f"{root}/")
             for member in archive.getmembers()
@@ -53,7 +53,7 @@ def test_bundle_contains_versioned_runtime_contract(tmp_path):
 
         manifest = json.load(archive.extractfile(f"{root}/manifest.json"))
         assert manifest["name"] == "asi-omega-extensions"
-        assert manifest["version"] == "0.1.3"
+        assert manifest["version"] == "0.1.4"
         for name in manifest["prompt_files"]:
             assert archive.extractfile(f"{root}/{name}").read() == (
                 REPO_ROOT / name
