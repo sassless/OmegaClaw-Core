@@ -9,7 +9,7 @@ import pytest
 MODULE_PATH = (
     Path(__file__).parents[1]
     / "plugins"
-    / "asi_create_context"
+    / "omega_cloud_context"
     / "context_file.py"
 )
 
@@ -19,7 +19,7 @@ def context_file_module():
     if not MODULE_PATH.exists():
         return None
     spec = importlib.util.spec_from_file_location(
-        "asi_create_context_file_under_test", MODULE_PATH
+        "omega_cloud_context_file_under_test", MODULE_PATH
     )
     module = importlib.util.module_from_spec(spec)
     spec.loader.exec_module(module)

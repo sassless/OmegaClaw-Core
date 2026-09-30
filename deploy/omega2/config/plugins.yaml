@@ -54,6 +54,6 @@
   loader: metta
   location: "/opt/asi-omega/plugins/mcp"
 
-- name: asi_create_context
+- name: omega_cloud_context
   loader: metta
-  location: "/opt/asi-omega/plugins/asi_create_context"
+  location: "/opt/asi-omega/plugins/omega_cloud_context"

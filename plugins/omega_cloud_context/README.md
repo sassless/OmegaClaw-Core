@@ -1,4 +1,4 @@
-# ASI Create context plugin
+# Omega Cloud context plugin
 
 This MeTTa plugin uses Omega's `prompt-extension` hook to add text from
 `asi_create_context.txt` to the agent's system prompt. It reads the file each

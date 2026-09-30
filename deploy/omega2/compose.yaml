@@ -33,8 +33,8 @@ services:
       - ../../plugins/wschat/asi_wschat.py:/opt/asi-omega/plugins/wschat/asi_wschat.py:ro
       - ../../plugins/wschat/chat_attachments.py:/opt/asi-omega/plugins/wschat/chat_attachments.py:ro
       - ../../plugins/wschat/wschat.metta:/opt/asi-omega/plugins/wschat/wschat.metta:ro
-      - ../../plugins/asi_create_context/asi_create_context.metta:/opt/asi-omega/plugins/asi_create_context/asi_create_context.metta:ro
-      - ../../plugins/asi_create_context/context_file.py:/opt/asi-omega/plugins/asi_create_context/context_file.py:ro
+      - ../../plugins/omega_cloud_context/omega_cloud_context.metta:/opt/asi-omega/plugins/omega_cloud_context/omega_cloud_context.metta:ro
+      - ../../plugins/omega_cloud_context/context_file.py:/opt/asi-omega/plugins/omega_cloud_context/context_file.py:ro
 
 volumes:
   omega-memory:

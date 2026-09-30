@@ -18,9 +18,9 @@
       "path": "plugins/wschat"
     },
     {
-      "name": "asi_create_context",
+      "name": "omega_cloud_context",
       "loader": "metta",
-      "path": "plugins/asi_create_context"
+      "path": "plugins/omega_cloud_context"
     }
   ],
   "plugin_registry": "config/plugins.yaml",

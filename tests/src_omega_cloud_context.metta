@@ -16,7 +16,7 @@
 !(initLogger)
 !(test
    (progn
-     (set-test-memory-directory "./tests/res/missing-context-directory")
-     (loadMettaPlugin "asi_create_context" "./plugins/asi_create_context")
-     (repr (collapse (prompt-extension asi-create-context))))
-   "()")
+     (set-test-memory-directory "./tests/res")
+     (loadMettaPlugin "omega_cloud_context" "./plugins/omega_cloud_context")
+     (contains-text (getPromptExtensions) "ASI CREATE TEST CONTEXT"))
+   True)

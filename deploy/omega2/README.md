@@ -11,7 +11,7 @@ plugin API, so sending an uploaded file does not require changes to upstream
 The deployment enables `wschatManageStartupMessages` so this channel sends the
 Omega Cloud greeting and suppresses Omega's automatic startup version message.
 
-The `asi_create_context` plugin reads
+The `omega_cloud_context` plugin reads
 `/PeTTa/repos/Omega/memory/asi_create_context.txt` from the persistent memory
 volume when Omega builds a prompt. The space-service backend currently writes
 this file to the fork's `/PeTTa/repos/OmegaClaw-Core/memory` path. Update its

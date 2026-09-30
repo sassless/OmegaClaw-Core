@@ -16,8 +16,8 @@ EXPECTED_FILES = {
     "memory/prompt_ASICloud.txt",
     "plugins/mcp/mcp.metta",
     "plugins/mcp/mcp_client.py",
-    "plugins/asi_create_context/asi_create_context.metta",
-    "plugins/asi_create_context/context_file.py",
+    "plugins/omega_cloud_context/omega_cloud_context.metta",
+    "plugins/omega_cloud_context/context_file.py",
     "plugins/wschat/chat_attachments.py",
     "plugins/wschat/asi_wschat.py",
     "plugins/wschat/wschat.metta",
@@ -66,7 +66,7 @@ def test_bundle_contains_versioned_runtime_contract(tmp_path):
         assert manifest["plugins"] == [
             {"name": "mcp", "loader": "metta", "path": "plugins/mcp"},
             {"name": "wschat", "loader": "metta", "path": "plugins/wschat"},
-            {"name": "asi_create_context", "loader": "metta", "path": "plugins/asi_create_context"},
+            {"name": "omega_cloud_context", "loader": "metta", "path": "plugins/omega_cloud_context"},
         ]
 
     expected_digest = hashlib.sha256(archive_path.read_bytes()).hexdigest()
