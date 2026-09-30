@@ -14,6 +14,8 @@ REPO_ROOT = Path(__file__).resolve().parents[1]
 RELEASE_ROOT = REPO_ROOT / "extensions" / "omega2"
 PACKAGE_NAME = "asi-omega-extensions"
 SOURCE_FILES = {
+    "config/config.yaml": REPO_ROOT / "deploy" / "omega2" / "config" / "config.yaml",
+    "overrides/src/rag.py": RELEASE_ROOT / "overrides" / "src" / "rag.py",
     "config/plugins.yaml": REPO_ROOT / "deploy" / "omega2" / "config" / "plugins.yaml",
     "memory/prompt.txt": REPO_ROOT / "memory" / "prompt.txt",
     "memory/prompt_ASICloud.txt": REPO_ROOT / "memory" / "prompt_ASICloud.txt",
