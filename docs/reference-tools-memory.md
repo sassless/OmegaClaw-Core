@@ -1,8 +1,8 @@
-# Reference — Memory Skills
+# Reference — Memory Tools
 
 Defined in `src/memory.metta` and catalogued in `src/skills.metta`.
 
-All four skills accept quoted string arguments. Variables are not permitted in LLM-generated calls.
+All four tools accept quoted string arguments. Variables are not permitted in LLM-generated calls.
 
 ---
 

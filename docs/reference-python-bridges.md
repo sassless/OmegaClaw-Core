@@ -80,7 +80,7 @@ String and time utilities used by the loop.
 | Function | Purpose |
 |---|---|
 | `balance_parentheses(str)` | Attempt to repair mismatched parentheses in LLM output before `sread` parses it. |
-| `normalize_string(obj)` | Render a skill return value into a string safe to embed in the next prompt. |
+| `normalize_string(obj)` | Render a tool result into a string safe to embed in the next prompt. |
 | `around_time(ts, n)` | Backs `(episodes ts)` — returns `n` lines of `memory/history.metta` around `ts`. |
 
 ## `src/skills.pl`

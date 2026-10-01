@@ -4,7 +4,7 @@ Omega uses a **three-tier memory architecture**. Each tier has distinct semantic
 
 ## Overview
 
-| Tier | Skill | Persistence | Role |
+| Tier | Tool | Persistence | Role |
 |---|---|---|---|
 | 1. Working memory | `pin` | Single slot, overwritten per cycle, session-local | Task state — "what am I doing right now?" |
 | 2. Long-term embedding memory | `remember` / `query` | Persistent across sessions | Accumulated knowledge, semantic recall |
@@ -85,7 +85,7 @@ The loader skips the step when the folder is missing, or when the folder exists 
 ### Use it for
 - Facts that must persist across sessions.
 - Verified, grounded premises (attach provenance in the atom body).
-- Accumulated user preferences, skills learned, lessons.
+- Accumulated user preferences, procedures learned, lessons.
 
 ### Do not use it for
 - Ephemeral scratchpad state — use `pin`.

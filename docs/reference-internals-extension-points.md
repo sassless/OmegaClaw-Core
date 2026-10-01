@@ -2,11 +2,11 @@
 
 Where to plug in new behavior, in order of increasing depth.
 
-## Add a skill
+## Add a tool
 
 Most common extension. Two edits:
 
-1. A line in `getSkills` (`src/skills.metta`) so the LLM knows the skill exists.
+1. A line in `getSkills` (`src/skills.metta`) so the LLM knows the tool exists.
 2. A `(= (my-skill $arg) ...)` definition, either pure MeTTa or a `py-call` / `translatePredicate`.
 
 Full walkthrough: [tutorial-03-writing-a-custom-tool.md](./tutorial-03-writing-a-custom-tool.md).
@@ -43,7 +43,7 @@ To add a provider:
 
 ## Change the prompt
 
-The agent's identity and values are in `memory/prompt.txt`. The run-time prompt template that sandwiches it is in `getContext` in `src/loop.metta`. Edit carefully — the output-format instruction is what keeps the LLM producing valid skill s-expressions.
+The agent's identity and values are in `memory/prompt.txt`. The run-time prompt template that sandwiches it is in `getContext` in `src/loop.metta`. Edit carefully — the output-format instruction is what keeps the LLM producing valid tool calls as s-expressions.
 
 ## Change the embedding model
 

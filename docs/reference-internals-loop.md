@@ -21,13 +21,13 @@ Initializes state:
 Also creates shared state slots:
 
 - `&prevmsg` — last received human message.
-- `&lastresults` — previous turn's skill results, for the next prompt.
+- `&lastresults` — previous turn's tool results, for the next prompt.
 - `&loops` — countdown until the agent goes idle.
 
 ## Every turn
 
 1. **Decrement `&loops`** (turns > 1 only).
-2. **Build the prompt** — `getContext` assembles `PROMPT + SKILLS + LAST_SKILL_USE_RESULTS + HISTORY + TIME` plus an output-format instruction requiring a tuple of up to 5 skill s-exprs.
+2. **Build the prompt** — `getContext` assembles `PROMPT + SKILLS + LAST_SKILL_USE_RESULTS + HISTORY + TIME` plus an output-format instruction requiring a tuple of up to 5 tool calls as s-exprs.
 3. **Receive** — `(receive)` via the active channel.
 4. **Detect new input** — compare against `&prevmsg`. If different and non-empty, reset `&loops` to `maxNewInputLoops`.
 5. **Set next wake** — `&nextWakeAt := now + wakeupInterval`.
@@ -38,7 +38,7 @@ Also creates shared state slots:
    - else → `lib_llm_ext.useAsi1`
 7. **Repair parentheses** — `helper.balance_parentheses` fixes common mismatches before parsing.
 8. **Parse** — `sread` on the repaired string; if it does not start with `(`, the loop feeds back a reminder prompt.
-9. **Dispatch skills** — `(superpose $sexpr)` runs each skill, capturing errors via `HandleError`.
+9. **Dispatch tool calls** — `(superpose $sexpr)` runs each call, capturing errors via `HandleError`.
 10. **Record** — `addToHistory` appends human message + response + any errors to `memory/history.metta`, provided something new happened.
 11. **Save last results** — into `&lastresults` for the next turn's prompt.
 12. **Sleep** — `(sleep (sleepInterval))`.
@@ -53,11 +53,11 @@ When `&loops` hits zero and no new message has arrived, the loop skips the LLM c
 Two kinds of error are reported back into `&error`:
 
 - **Parse failure** (`MULTI_COMMAND_FAILURE_...`) — the LLM did not produce a valid s-expression.
-- **Per-skill failure** (`SINGLE_COMMAND_FORMAT_ERROR_...`) — one skill call failed.
+- **Tool call failure** (`SINGLE_COMMAND_FORMAT_ERROR_...`) — one tool call failed.
 
 Errors are appended to the episodic trace so the agent sees them and can self-correct.
 
 ## See also
 
 - [introduction.md#architecture](./introduction.md#architecture) — the architecture diagram.
-- [reference-internals-tool-dispatch.md](./reference-internals-tool-dispatch.md) — how individual skills resolve.
+- [reference-internals-tool-dispatch.md](./reference-internals-tool-dispatch.md) — how individual tool calls resolve.

@@ -102,7 +102,7 @@ All frames are UTF-8 JSON objects with a `type` field; unknown types are logged 
 
 ## `channels/websearch.py`
 
-Not a communication channel in the `send`/`receive` sense — this is the backend for the `search` skill. Exposes `search(query)`.
+Not a communication channel in the `send`/`receive` sense — this is the backend for the `websearch` tool. Exposes `search(query)`.
 
 ## Adding a new channel
 

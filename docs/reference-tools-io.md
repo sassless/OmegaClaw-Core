@@ -1,6 +1,6 @@
-# Reference — I/O Skills
+# Reference — I/O Tools
 
-Defined in `src/skills.metta`; the `shell` primitive is backed by `src/skills.pl`, the write skills by `src/fileio.py`.
+Defined in `src/skills.metta`; the `shell` tool is backed by `src/skills.pl`, the write tools by `src/fileio.py`.
 
 ---
 
@@ -76,7 +76,7 @@ Create or overwrite a file with the given contents.
 ### Returns
 A verification string read back from disk after the write:
 `WRITE-VERIFIED file=<path> bytes=<size> sha256=<16 hex chars> head='<first 80 bytes>' tail='<last 80 bytes>'`
-— or `WRITE-FAILED file=<path>: <error>` on failure (the skill returns, never raises).
+— or `WRITE-FAILED file=<path>: <error>` on failure (the tool returns, never raises).
 
 ### Examples
 ```metta
@@ -146,7 +146,7 @@ read back from disk — or `APPEND-FAILED file=<path>: <error>` (e.g. when the f
 ```
 
 ### Notes / Limits
-- Fails if the file does not exist (the skill checks existence first). Create it with `write-file` first if needed.
+- Fails if the file does not exist (the tool checks existence first). Create it with `write-file` first if needed.
 - For files up to 160 bytes the `tail` snippet is empty (`head` plus `sha256` already cover the content); for files over 2 MB the hash is reported as `sha256=skipped(large)`.
 - A trailing newline is always added.
 
@@ -164,12 +164,12 @@ read back from disk — or `APPEND-FAILED file=<path>: <error>` (e.g. when the f
 
 Return the filesystem paths allowed by Omega's active security policy.
 
-Agent should use this skill before reading, writing, appending, or otherwise modifying a
+Agent should use this tool before reading, writing, appending, or otherwise modifying a
 file when the target path is not known to be allowed.
 
 ### Parameters
 
-This skill does not take any parameters. It reads the policy file configured
+This tool does not take any parameters. It reads the policy file configured
 by the `securityPolicyPath` runtime option.
 
 ### Returns
@@ -188,7 +188,7 @@ Example:
 }
 ```
 
-If no security policy is configured, the skill returns:
+If no security policy is configured, the tool returns:
 
 ```text
 Could not retrieve policy: policy is not set
@@ -214,12 +214,12 @@ A typical workflow before writing a file is:
 
 ### Notes / Limits
 
-- The skill reports configured policy paths; it does not grant permissions.
+- The tool reports configured policy paths; it does not grant permissions.
 - Paths in `read_only` must not be used for writing.
 - Paths in `read_write` may be read and modified.
-- The skill does not check a particular requested path automatically.
+- The tool does not check a particular requested path automatically.
 - The result contains policy paths, not the contents of the policy file.
 - Does not reveal the complete security-policy configuration to the user.
 - If a requested path is denied, suggest using `/tmp` when appropriate.
-- If `securityPolicyPath` is empty, the skill reports that the policy is not
+- If `securityPolicyPath` is empty, the tool reports that the policy is not
   set.

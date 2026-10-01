@@ -8,7 +8,7 @@ The `loadOmegaPlugin` function calls the Omega plugin API in order to
 implement new agent's features. The plugin API provides functions to:
 - add communication channel integrations
 - add LLM provider integrations
-- add new skills or remove added skills
+- add new tools or remove added tools
 - extend LLM prompt by adding new information or removing it
 - etc
 
@@ -168,10 +168,10 @@ sh run.sh run.metta provider=Example
 
 ## Other agent related APIs
 
-A plugin can dynamically add new skills or modify the agent's prompt if it is
+A plugin can dynamically add new tools or modify the agent's prompt if it is
 required. This ability is provided by the following MeTTa functions:
-- `(add-skill $function $description $arguments)` - adds the skill
-- `(remove-skill $function)` - removes the skill by its function name
+- `(add-skill $function $description $arguments)` - adds a tool
+- `(remove-skill $function)` - removes a tool by its function name
 - `(add-prompt-extension $handle $text)` - adds text to the prompt
 - `(remove-prompt-extension $handle)` - removes text from the prompt by the
   handle

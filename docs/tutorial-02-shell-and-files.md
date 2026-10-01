@@ -5,11 +5,11 @@
 ## Prerequisites
 
 - A running Omega (see [Usage](/README.md#usage)).
-- Awareness that these skills run with the permissions of the Omega process.
+- Awareness that these tools run with the permissions of the Omega process.
 
-## The four I/O skills
+## The four I/O tools
 
-| Skill | Purpose |
+| Tool | Purpose |
 |---|---|
 | `(shell "cmd")` | Run a shell command; returns stdout. Apostrophes are not allowed in the argument. |
 | `(read-file "path")` | Return the file contents as a string. |
@@ -24,7 +24,7 @@ See [reference-tools-io.md](./reference-tools-io.md) for exact signatures.
 what version of python is available?
 ```
 
-Expected skill call: `(shell "python3 --version")`.
+Expected tool call: `(shell "python3 --version")`.
 
 ## 2. Produce a file
 
@@ -55,5 +55,5 @@ The agent should `(append-file "/tmp/session.log" "...")` on each subsequent tur
 
 ## Next steps
 
-- [tutorial-03-writing-a-custom-tool.md](./tutorial-03-writing-a-custom-tool.md) — extend the surface with your own skill.
+- [tutorial-03-writing-a-custom-tool.md](./tutorial-03-writing-a-custom-tool.md) — extend the surface with your own tool.
 - [reference-tools-io.md](./reference-tools-io.md) — full details and edge cases.

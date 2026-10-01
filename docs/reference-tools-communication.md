@@ -1,4 +1,4 @@
-# Reference — Communication Skills
+# Reference — Communication Tools
 
 Defined in `src/channels.metta`. Dispatch depends on the `commchannel` configuration parameter (see [reference-configuration.md](./reference-configuration.md)).
 

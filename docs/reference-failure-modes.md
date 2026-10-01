@@ -87,8 +87,8 @@ Some rules are implemented but behave in unexpected ways. Know these before writ
 
 Measured across 4,500+ operational cycles, the top error categories are:
 
-1. **Commands not executed** (`NOTHING_WAS_DONE`) — the LLM produced output that was not a valid skill tuple.
-2. **Multi-command parsing failures.**
+1. **Tool calls not executed** (`NOTHING_WAS_DONE`) — the LLM produced output that was not a valid tool call.
+2. **Multi-call parsing failures.**
 3. **Parenthesis mismatches** — repaired best-effort by `helper.balance_parentheses`, but not always successfully.
 
 These are **the most frequent failure mode in the entire system**, not occasional glitches.
@@ -99,7 +99,7 @@ When a new human message arrives during autonomous work, the LLM attempts to sim
 
 ### Bandwidth constraint
 
-The 5-command-per-cycle limit means complex reasoning chains require 10–20 cycles. Budget accordingly.
+The limit of 5 tool calls per cycle means complex reasoning chains require 10–20 cycles. Budget accordingly.
 
 ### State fragility
 
