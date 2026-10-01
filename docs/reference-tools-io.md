@@ -28,8 +28,8 @@ The captured stdout and stderr of the command as one string, or `timeout_error` 
 
 ### Notes / Limits
 - Runs with the permissions of the Omega process.
-- Runs as `timeout -k 1s 5s sh -c <command>`. A command still running after 5 seconds gets a TERM signal, and a KILL signal one second later.
-- No sandboxing. Run in a container for anything resembling untrusted use.
+- Executed as `timeout -k 1s 5s sh -c <command>`. A command still running after 5 seconds gets a TERM signal, and a KILL signal one second later.
+- File access is limited only by the Landlock policy from `securityPolicyPath` (see `get-io-policy`). There is no other sandbox. Run in a container for anything resembling untrusted use.
 - Prefer writing complex commands to a file and invoking the file rather than embedding quotes-within-quotes.
 
 ---
@@ -165,8 +165,8 @@ read back from disk — or `APPEND-FAILED file=<path>: <error>` (e.g. when the f
 
 Return the filesystem paths allowed by Omega's active security policy.
 
-Agent should use this tool before reading, writing, appending, or otherwise modifying a
-file when the target path is not known to be allowed.
+The agent should use this tool before reading, writing, appending, or otherwise
+modifying a file when the target path is not known to be allowed.
 
 ### Parameters
 

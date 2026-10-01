@@ -6,7 +6,7 @@ Where to plug in new behavior, in order of increasing depth.
 
 Most common extension. A built-in tool takes three edits:
 
-1. A line in `getStaticSkills` (`src/skills.metta`) so the LLM knows the tool exists. It has the form of the lines already there, `"- <description>: <name> <argument>"`.
+1. A line in `getStaticSkills` (`src/skills.metta`) so the LLM knows the tool exists. It follows the form of the lines already in that function, `"- <description>: <name> <argument>"`.
 2. The tool name in `STATIC_LLM_COMMANDS` (`src/helper.py`) so the parser accepts calls to it. A tool that takes a file name and content also goes into `TWO_ARG_COMMANDS`.
 3. A `(= (my-tool $arg) ...)` definition, either pure MeTTa or a `py-call` / `translatePredicate`.
 

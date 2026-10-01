@@ -10,7 +10,7 @@
 
 Omega uses a **three-tier memory architecture**:
 
-1. **Working memory** — `pin` (volatile, single slot, session-local).
+1. **Working memory** — `pin` (notes kept in the episodic trace, visible in `HISTORY` until newer entries push them out).
 2. **Long-term embedding memory** — `remember` / `query` (persistent across sessions).
 3. **AtomSpace** — atomized truth-valued atoms used by the reasoning engines. Separate; see [tutorial-05-reasoning-with-nal-pln.md](./tutorial-05-reasoning-with-nal-pln.md).
 
@@ -46,7 +46,7 @@ Even though you never said "sync" or "team", the embedding similarity should sur
 what happened around 2026-04-15 14:30:00?
 ```
 
-This triggers `(episodes "2026-04-15 14:30:00")` which reads `maxEpisodeRecallLines` lines around that timestamp from the episodic trace.
+This triggers `(episodes "2026-04-15 14:30:00")`, which reads the line closest to that timestamp from the episodic trace, with up to `maxEpisodeRecallLines` lines on each side.
 
 ## 4. Working memory with `pin`
 
@@ -63,7 +63,7 @@ Well-behaved behavior is to `pin` the candidate list so the next turn can refer 
 From `src/memory.metta`:
 
 - `maxRecallItems` — how many items `query` returns (default 20).
-- `maxEpisodeRecallLines` — how many lines `episodes` returns (default 20).
+- `maxEpisodeRecallLines` — how many lines `episodes` returns on each side of the closest timestamp (default 20).
 - `maxHistory` — characters of history fed back into the prompt (default 30000).
 - `embeddingprovider` — `OpenAI`, `ASICloud` or `Local`.
 

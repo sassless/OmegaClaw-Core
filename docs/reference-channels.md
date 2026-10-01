@@ -100,9 +100,9 @@ All frames are UTF-8 JSON objects with a `type` field; unknown types are logged 
 - Outbound messages produced while disconnected queue in a bounded outbox (100 entries) and flush after the next successful connect, before any new inbound traffic is processed.
 - Duplicate `user_message` frames (`seq <= last_seen_seq`, or already buffered) are dropped, so server replays after `resume` are idempotent.
 
-## `channels/websearch.py`
+## `src/websearch.py`
 
-Not a communication channel in the `send`/`receive` sense — this is the backend for the `websearch` tool. Exposes `search(query)`.
+Not a communication channel in the `send`/`receive` sense. This is the backend for the `websearch` tool and exposes `search(query, max_results=10)`.
 
 ## Adding a new channel
 

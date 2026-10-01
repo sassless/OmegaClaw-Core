@@ -126,9 +126,9 @@ curl -sS http://127.0.0.1:18789/v1/responses \
   -d '{"model":"openclaw","input":"Reply with exactly: PONG"}'
 ```
 
-On Omega startup the log should show
-`openclaw-plugin: OpenClaw integration is enabled`, and the agent should offer
-the `delegate-task-to-openclaw-agent` tool.
+On Omega startup the `openclaw-plugin` logger should print
+`OpenClaw integration is enabled`, and the agent should offer the
+`delegate-task-to-openclaw-agent` tool.
 
 ## Tool result
 
@@ -189,7 +189,7 @@ the rest of the history window (`maxHistory`).
 | `missing scope ... (MISSING_SCOPE)` | The request went to the WebSocket surface instead of `/v1/responses` |
 | `HTTP 504` | The Gateway took longer than the proxy's `proxy_read_timeout` to answer |
 | `busy` and no delegation starts | `MAX_IN_FLIGHT` tasks are still running; they clear as the Gateway answers |
-| No `OPENCLAW_RESULT` ever appears | The container restarted mid-flight, or the plugin's heartbeat listener was not registered - check for `openclaw-plugin: OpenClaw integration is enabled` on startup |
+| No `OPENCLAW_RESULT` ever appears | The container restarted mid-flight, or the plugin's heartbeat listener was not registered - check that the `openclaw-plugin` logger printed `OpenClaw integration is enabled` on startup |
 
 These errors surface in the `OPENCLAW_RESULT` history line, since the tool
 returns before the Gateway answers.

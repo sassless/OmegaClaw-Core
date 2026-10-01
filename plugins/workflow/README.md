@@ -4,8 +4,8 @@ Workflow loading plugin allows loading skills written in the [Agent Skills
 format](https://agentskills.io/specification). A skill is a directory with a
 `SKILL.md` file, and this plugin refers to a skill as a workflow. Each workflow
 consists of short description in `description.txt` file, detailed description
-in `SKILL.md` file and optionally `skill.metta` file which contains related
-tools implementation in MeTTa language.
+in `SKILL.md` file and optionally `skill.metta` file which contains the
+implementation of the related tools in MeTTa language.
 
 [Research workflow](./instructions/research-workflow) is a ready-to-use example
 of the workflow. One can try it starting the agent and asking it doing a
@@ -21,8 +21,8 @@ logistic regression and random forest.
 description for the agent. The file is specific to this plugin and is not part
 of the Agent Skills format. When the agent starts, the plugin adds the
 descriptions of all workflows to the prompt, so the agent knows which
-workflows it can load. A workflow without `description.txt` is not listed. For
-example:
+workflows it can load. A workflow without `description.txt` is not listed. An
+example of the file:
 ```
 When user asks to demonstrate workflow plugin load test-workflow instructions: (workflow-load-instructions \"test-workflow\")
 ```

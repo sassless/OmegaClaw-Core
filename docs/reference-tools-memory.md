@@ -1,8 +1,8 @@
 # Reference — Memory Tools
 
-`remember`, `query` and `episodes` are defined in `src/memory.metta`, `pin` in `src/skills.metta`. All four are listed in `getStaticSkills` in `src/skills.metta`.
+`remember`, `query`, and `episodes` are defined in `src/memory.metta`, `pin` in `src/skills.metta`. All four are listed in `getStaticSkills` in `src/skills.metta`.
 
-Each of the four tools takes one string argument. The LLM writes it after the tool name without quotes, for example `remember user prefers dark mode`, and the parser turns the line into `(remember "user prefers dark mode")`. The prompt asks the LLM not to use variables, and a `$x` in the line would arrive as plain text.
+Each of the four tools takes one string argument. The LLM writes it after the tool name without quotes, for example `remember user prefers dark mode`, and the parser turns the line into `(remember "user prefers dark mode")`. The prompt asks the LLM not to use variables. A `$x` in the line arrives as plain text, unless the argument is a single line that starts and ends with a double quote, as in `remember "a" $x "b"`. The parser keeps such an argument as written, and `sread` then reads the `$x` outside the quotes as a variable.
 
 ---
 
@@ -71,7 +71,7 @@ A list-shaped result containing the nearest memory items.
 ```
 
 ### Purpose
-Return `maxEpisodeRecallLines` lines of the episodic trace centered on the given timestamp.
+Return the line of the episodic trace whose timestamp is closest to the given one, with up to `maxEpisodeRecallLines` lines before and after it (at most 41 lines with the default of 20).
 
 ### Parameters
 - `timestamp` — must match the format produced by `get_time_as_string`.
@@ -98,7 +98,7 @@ A block of lines from `memory/history.metta`.
 ```
 
 ### Purpose
-Append a working-memory note to the episodic trace so the next turn can see it in `HISTORY`.
+Make a working-memory note visible to the next turn in `HISTORY`.
 
 ### Parameters
 - `string` — the note. Typical uses: intermediate results, plans for the next turn, checklists.

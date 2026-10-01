@@ -11,11 +11,11 @@
 
 A tool is three things:
 
-1. **An entry in the tool list** in `src/skills.metta` (the `getStaticSkills` list) so the LLM learns it exists, and the tool name in `STATIC_LLM_COMMANDS` in `src/helper.py` so the parser accepts calls to it.
+1. **An entry in the tool list** in `src/skills.metta` (the `getStaticSkills` list) so the LLM learns the tool exists. The tool name must also be in `STATIC_LLM_COMMANDS` in `src/helper.py` so the parser accepts calls to it.
 2. **A MeTTa definition** of how the tool executes. Pure-MeTTa tools are written directly; tools that need system access delegate to Python or Prolog.
 3. **Optional Python/Prolog glue** imported through `py-call` or `translatePredicate`.
 
-A MeTTa plugin can add a tool without editing `src/skills.metta` and `src/helper.py`. It defines the tool in its own `.metta` file and calls `add-skill` from its `loadOmegaPlugin`. `add-skill` adds the tool's line to the prompt and registers the name with the parser (see [reference-plugin-api.md](./reference-plugin-api.md#other-agent-related-apis)). For this example the call would be `(add-skill word-count "Count space-separated words in a string" (string))`.
+A MeTTa plugin can add a tool without editing `src/skills.metta` or `src/helper.py`. It defines the tool in its own `.metta` file and calls `add-skill` from its `loadOmegaPlugin`. `add-skill` adds the tool's line to the prompt and registers the name with the parser (see [reference-plugin-api.md](./reference-plugin-api.md#other-agent-related-apis)). For the `word-count` example below, the call would be `(add-skill word-count "Count space-separated words in a string" (string))`.
 
 ## Example: a `word-count` tool
 
@@ -33,11 +33,11 @@ This text goes into the `SKILLS:` section of the prompt, so the LLM knows the to
 
 ### Step 2 — Register the name with the parser
 
-Open `src/helper.py` and add `"word-count",` to the `STATIC_LLM_COMMANDS` set. Without it the parser turns every `word-count` line into `(Error UNKNOWN_SKILL_CALL "...")`, and the loop does not run it.
+Open `src/helper.py` and add `"word-count",` to the `STATIC_LLM_COMMANDS` set. Without it the parser does not know `word-count` as a tool name. A `word-count` line at the start of the reply becomes `(Error UNKNOWN_SKILL_CALL "...")`, and a `word-count` line after another call is added to that call's argument. In both cases the loop does not run `word-count`.
 
 ### Step 3 — Define the implementation
 
-Still in `src/skills.metta`, add at the end of the file:
+Back in `src/skills.metta`, add at the end of the file:
 
 ```metta
 (= (word-count $str)
@@ -50,7 +50,7 @@ If you prefer Python, register a function in a `.py` module and call `(py-call (
 
 ### Step 4 — Test
 
-Restart the agent (`sh run.sh run.metta` from the PeTTa folder, see [Usage](/README.md#usage)). Ask:
+Restart the agent with the command you started it with (`sh run.sh run.metta ...` from the PeTTa folder; see [Usage](/README.md#usage)). Ask:
 
 ```
 how many words are in "the quick brown fox"?
@@ -61,7 +61,7 @@ The LLM should reply with the line `word-count the quick brown fox`, with or wit
 ## Conventions
 
 - Tool names are lowercase, hyphen-separated.
-- The tool gets everything after its name as one string, because the parser adds the quotes. The prompt tells the LLM not to quote arguments and not to use variables. Nothing checks this, and a `$x` arrives as plain text.
+- The tool gets everything after its name as one string, because the parser adds the quotes. The prompt tells the LLM not to quote arguments and not to use variables. Nothing checks this. A `$x` arrives as plain text, except when the argument is a single line that starts and ends with a double quote and the `$x` stands outside the quoted parts, as in `word-count "a" $x "b"`. The parser keeps such an argument as written.
 - A tool that takes a file name and content also needs its name in `TWO_ARG_COMMANDS` in `src/helper.py`. Any other tool gets several arguments only when the LLM puts each one in double quotes.
 - Return a value that is safe to render into the `LAST_SKILL_USE_RESULTS` context — the loop runs the result through `helper.normalize_string`.
 - If your tool may fail, wrap error-producing subcalls in `catch` or let them fall through to the loop's `HandleError`.

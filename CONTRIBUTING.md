@@ -29,7 +29,7 @@ There are many ways to contribute to Omega:
 
 - **Bug fixes**: Fix issues reported by the community in the [issue tracker](https://github.com/singnet/Omega/issues) or found during your own testing.  
 - **New features**: Propose and implement new capabilities for the agent framework.  
-- **New tools:** Add a MeTTa tool following the tool dispatch architecture (see [tutorial-03](docs/tutorial-03-writing-a-custom-tool.md)).  
+- **New tools:** Add new MeTTa tools following the tool dispatch architecture (see [tutorial-03](docs/tutorial-03-writing-a-custom-tool.md)).  
 - **New channels:** Build communication channel adapters (see [tutorial-04](docs/tutorial-04-adding-a-channel.md)).  
 - **New plugins**: Develop new plugins, or extensions that enhance Omega's functionality.  
 - **Documentation**: Improve or expand documentation, tutorials, or inline code comments.  

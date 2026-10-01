@@ -48,14 +48,16 @@ Numbered in suggested reading order. Each tutorial is self-contained.
 Built-in tools the agent can call. Each page follows the template **Signature → Purpose → Parameters → Returns → Examples → Notes/Limits**.
 
 - [reference-tools-memory.md](./reference-tools-memory.md) — `remember`, `query`, `episodes`, `pin`
-- [reference-tools-io.md](./reference-tools-io.md) — `shell`, `read-file`, `write-file`, `write-file-b64`, `append-file`
-- [reference-tools-communication.md](./reference-tools-communication.md) — `send`, `receive`, `websearch`
+- [reference-tools-io.md](./reference-tools-io.md) — `shell`, `read-file`, `write-file`, `write-file-b64`, `append-file`, `get-io-policy`
+- [reference-tools-communication.md](./reference-tools-communication.md) — `send`, `websearch`, and `receive` (called by the loop)
 - [reference-tools-reasoning.md](./reference-tools-reasoning.md) — `metta` (NAL/PLN invocation surface)
+
+`delete-file` and `version` are built-in tools too and have no reference page yet.
 
 ### Configuration & Adapters
 
 - [reference-configuration.md](./reference-configuration.md) — `configure` form and all runtime parameters
-- [reference-channels.md](./reference-channels.md) — IRC, Telegram, Slack, Mattermost, WebSocket, and websearch adapters plus the channel contract
+- [reference-channels.md](./reference-channels.md) — IRC, Telegram, Slack, Mattermost, and WebSocket adapters plus the channel contract, and the backend of the `websearch` tool
 - [reference-python-bridges.md](./reference-python-bridges.md) — `lib_llm_ext.py`, `src/helper.py`, `src/skills.pl`
 - [reference-memory-portability.md](./reference-memory-portability.md) — Operator backup, restore, and archive-transfer workflow
 
@@ -72,4 +74,4 @@ Built-in tools the agent can call. Each page follows the template **Signature �
 - [reference-internals-loop.md](./reference-internals-loop.md) — `src/loop.metta` lifecycle and turn structure
 - [reference-internals-memory-store.md](./reference-internals-memory-store.md) — The three-tier memory architecture, including `knowledge-priors` markdown seeding into ChromaDB
 - [reference-internals-tool-dispatch.md](./reference-internals-tool-dispatch.md) — How tool calls are parsed and dispatched
-- [reference-internals-extension-points.md](./reference-internals-extension-points.md) — Where to hook in new tools, channels, LLM providers and engines
+- [reference-internals-extension-points.md](./reference-internals-extension-points.md) — Where to hook in new tools, channels, LLM providers, and engines

@@ -39,7 +39,7 @@ No meaningful return value. Used for its side effect.
 ```
 
 ### Purpose
-Return the latest message received on the active channel since the previous call. `receive` is not a tool. It is not in the tool list or among the names the parser accepts, so the LLM cannot call it. `src/loop.metta` calls it once per loop iteration.
+Return the latest message received on the active channel since the previous call. `receive` is not a tool. It is not in the tool list or among the names the parser accepts, so the LLM cannot call it as a tool, only from inside a `metta` expression. `src/loop.metta` calls it once per loop iteration.
 
 ### Parameters
 None.
@@ -55,7 +55,7 @@ The loop calls `receive` itself:
 ```
 
 ### Notes / Limits
-- Delegates to `wschat.getLastMessage`, `irc.getLastMessage`, `telegram.getLastMessage`, `slack.getLastMessage`, or `mattermost.getLastMessage`.
+- Delegates to `channels.commChannelReceive` in `src/channels.py`, which calls `receive` on the channel that the `commchannel` parameter selects (see [reference-plugin-api.md](./reference-plugin-api.md#communication-channel-integration)). The built-in channels implement it with their module's `getLastMessage`, for example `irc.getLastMessage`.
 - The loop treats an unchanged message as "no new input" via the `&prevmsg` state.
 
 ---
