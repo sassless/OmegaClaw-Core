@@ -44,7 +44,7 @@ docker run -d -it \
 |---|---|---|
 | `--name <CONTAINER_NAME>` | Yes | Container name. Must equal `OMEGA_CONTAINER` on the host shell. |
 | `--user 65534:65534` | No | Runs the agent as `nobody:nogroup`. Recommended; matches the image default. |
-| `--init` | Yes | Uses tini as PID 1 to reap zombie processes spawned by `(run ...)` and `(create-script ...)`. |
+| `--init` | Yes | Uses tini as PID 1 to reap zombie processes spawned by `(shell ...)`. |
 | `--network bridge` | Yes | Outbound network for IRC, LLM API, search, embeddings. |
 | `--volume omega-memory:<.../memory/>` | Yes | Persists ChromaDB and `history.metta` across container restarts. Tests run fine without it within one session. |
 | `--tmpfs /tmp:...,exec` | Yes | `exec` is mandatory: several tests create shell scripts in `/tmp` and execute them. Default Docker tmpfs is `noexec`. |
@@ -88,7 +88,7 @@ pytest -s -v test_*.py
   Upon completion of the tests (both positive and negative), all test files are deleted.
 - At the beginning of each test it is verified that there are no leftover test files in the target
   directories.
-- The tests verify functionality of the agent's tools. Each tool has several core functions that
+- The tests verify functionality of the agent's tools. Each tool has several main behaviours that
   are covered by tests, either individually or in combination.
 - When launching the container, use Authorization Key `0000`. To use a different value, edit the
   line `sock.sendall(f"PRIVMSG {CHANNEL} :auth 0000\r\n".encode())` in `helpers.py` before

@@ -6,8 +6,8 @@ May 2026). A second "driver" bot plays the test user, sending prompts to the age
 reading its replies. The LLM is still mocked (`provider="Test"`, deterministic answers from
 `Autotests/mock/llm.py`); only the message-delivery transport differs from `Autotests/mock/`.
 
-The 26 tests in this directory mirror `Autotests/mock/test_*_mock.py` 1:1, with the same
-mock-LLM answers, prompts and assertions, and are listed at the end of this document.
+The 24 tests in this directory mirror 24 of the `Autotests/mock/test_*_mock.py` files with the same
+prompts and assertions, and are listed at the end of this document.
 
 ## 1. Prerequisites
 
@@ -54,7 +54,7 @@ docker run -d -it \
   --tmpfs /tmp:size=64m,mode=1777,exec \
   --tmpfs /run:size=16m,mode=755 \
   --tmpfs /var/tmp:size=64m,mode=1777,exec \
-  -e TEST_API_KEY=172.17.0.1 \
+  -e TEST_SERVER_IP=172.17.0.1 \
   -e OMEGA_AUTH_SECRET=0000 \
   omega:mock \
   commchannel="telegram" \
@@ -70,7 +70,7 @@ Notes:
 - `TG_BOT_TOKEN` is the agent bot token (the bot that the Omega loop runs as).
 - `provider="Test"` selects the mock LLM dispatcher.
 - `embeddingprovider="Local"` keeps the embedding model in-process (no network call).
-- `TEST_API_KEY=172.17.0.1` is the host's docker-bridge address used by the mock LLM provider.
+- `TEST_SERVER_IP=172.17.0.1` is the host's docker-bridge address used by the mock LLM provider.
 - `OMEGA_AUTH_SECRET=0000` matches the value the autouse `_tg_authenticate` fixture sends as
   `auth 0000` once per session.
 
@@ -111,7 +111,7 @@ pytest -s -v mock_telegram/test_*_telegram_mock.py
 
 The LLM mock controller and the `RealTgDriver` are provided by session-scoped fixtures in
 `mock_telegram/conftest.py`, so both are started once per pytest session. Expected output:
-26 passed (plus 1 skipped if `OMEGA_GIT_TOKEN` is not set).
+24 passed (23 passed and 1 skipped if `OMEGA_GIT_TOKEN` is not set).
 
 ## 7. Tear down
 
@@ -122,11 +122,12 @@ docker volume rm omega-tg-memory
 
 ## Tests description
 
-All 26 tests are 1:1 mirrors of the corresponding `Autotests/mock/test_*_mock.py` files. The
-mock-LLM answer, prompt body, prepared fixtures, and assertions are identical to the IRC
-variants; the only difference is the message-delivery transport. Where the IRC variant calls
-`helpers.send_prompt(prompt)`, the Telegram variant calls `tg_send_prompt(tg, prompt)`, which
-makes the driver bot send `sendMessage(@agent, prompt)` to the agent bot via api.telegram.org.
+All 24 tests mirror the corresponding `Autotests/mock/test_*_mock.py` files. The prompt body,
+prepared fixtures, and assertions are the same as in the mock-channel variants, and so is the
+mock-LLM answer, except in `test_git_pull_public_telegram_mock.py`, which still clones in the
+foreground. Where the mock-channel variant calls `comm.send_message(prompt)`, the Telegram variant
+calls `tg_send_prompt(tg, prompt)`, which makes the driver bot send `sendMessage(@agent, prompt)`
+to the agent bot via api.telegram.org.
 Because the LLM is deterministic, no `try_with_clarification` retries are needed: every test
 either passes on the first attempt or fails outright.
 
@@ -201,7 +202,7 @@ Runs a syntactically broken pre-created script and captures stdout and stderr to
 
 Runs `dateupdate.sh` exactly 10 times in a row.
 
-- Mock answer: ten consecutive `(shell "{SCRIPT_FILE}")` calls (one per run).
+- Mock answer: ten consecutive `(shell "sh {SCRIPT_FILE}")` calls (one per run).
 - Checks: `update.txt` exists with mtime >= start, has at least 10 lines, every line contains
   date-like digits.
 
@@ -287,8 +288,8 @@ Agent clones a public repository over anonymous HTTPS, no token.
 
 Agent runs `git init`, `git add`, `git commit` locally inside the container.
 
-- Mock answer: chain of `(shell "git -C {TARGET_DIR} init") (shell "...write file...") (shell "git
-  -C {TARGET_DIR} add -A") (shell "git -C {TARGET_DIR} commit -m 'add hello <run_id>'")`.
+- Mock answer: chain of `(shell "git -C {TARGET_DIR} init") (write-file "<file>" "<marker>") (shell
+  "git -C {TARGET_DIR} add -A") (shell "git -C {TARGET_DIR} commit -m \"add hello <run_id>\"")`.
 - Checks: HEAD has at least one commit, commit subject contains the `run_id` (warning, not
   failure), the file is present in the tree.
 
@@ -312,7 +313,7 @@ Agent writes `mkdirs.sh` and runs it. The script must create `test1`, `test2`, `
 `/tmp/test_dirs/`.
 
 - Mock answer: `(write-file "{SCRIPT_PATH}" "#!/bin/bash\nmkdir -p .../test1 .../test2
-  .../test3\n") (shell "chmod +x {SCRIPT_PATH}") (shell "{SCRIPT_PATH}")`.
+  .../test3\n") (shell "chmod +x {SCRIPT_PATH}") (shell "sh {SCRIPT_PATH}")`.
 - Checks: all three directories exist with fresh mtimes; agent invoked `(write-file ...)`
   referencing `mkdirs.sh`; agent invoked `(shell ...)` to run the script. Diagnostics print
   `wf=<count>`, `sh=<count>`, `perms=<...>` to make stalls obvious.
@@ -360,7 +361,7 @@ directly.
 
 - Mock answer: `(write-file "/tmp/wflow/w.txt" "New York tomorrow: clear, high 22 degrees
   Celsius.") (write-file "/tmp/wflow/p.sh" "#!/bin/bash\ngrep -oE '[0-9]+' /tmp/wflow/w.txt |
-  head -1 > /tmp/wflow/t.txt\n") (shell "chmod +x /tmp/wflow/p.sh") (shell "/tmp/wflow/p.sh")`.
+  head -1 > /tmp/wflow/t.txt\n") (shell "chmod +x /tmp/wflow/p.sh") (shell "sh /tmp/wflow/p.sh")`.
 - Checks: `w.txt` exists; history contains `(write-file ...)` referencing `w.txt`; `p.sh` exists
   with executable bit; history contains `(write-file ...)` or `(shell ...)` referencing `p.sh`;
   `t.txt` exists; history contains `(shell ...)` running `p.sh`; `t.txt` content is a number in the

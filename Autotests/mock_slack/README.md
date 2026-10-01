@@ -2,7 +2,7 @@
 
 This section describes how to run the `test_*_slack_mock.py` suite against a local Omega container that talks to the real Slack Web API. Two Slack bots are used: an "agent" bot, which Omega runs as inside the container, and a "driver" bot, which the pytest harness uses to post prompts into a shared channel and to read the agent's replies. The LLM is still mocked (`provider="Test"`, deterministic answers from `Autotests/mock/llm.py`); only the message-delivery transport differs from `Autotests/mock/`.
 
-The 26 tests in this directory mirror `Autotests/mock/test_*_mock.py` 1:1: same mock-LLM answers, same prompts, same assertions. They are listed at the end of this document.
+The 24 tests in this directory mirror 24 of the `Autotests/mock/test_*_mock.py` files with the same prompts and assertions. They are listed at the end of this document.
 
 ## 1. Prerequisites
 
@@ -165,7 +165,7 @@ source venv/bin/activate
 pytest -s -v mock_slack/test_*_slack_mock.py
 ```
 
-The `LlmMockController` and the `SlackRealDriver` are provided by session-scoped fixtures in `mock_slack/conftest.py`, so both are started once per pytest session. Expected output: `26 passed` (or `25 passed, 1 skipped` if `OMEGA_GIT_TOKEN` is not set).
+The `LlmMockController` and the `SlackRealDriver` are provided by session-scoped fixtures in `mock_slack/conftest.py`, so both are started once per pytest session. Expected output: `24 passed` (or `23 passed, 1 skipped` if `OMEGA_GIT_TOKEN` is not set).
 
 ## 7. Tear down
 
@@ -177,7 +177,7 @@ This removes the `omega` container and the `omega-memory` volume created by the 
 
 # Tests description
 
-All 26 tests are 1:1 mirrors of the corresponding `Autotests/mock/test_*_mock.py` files. The mock-LLM answer, prompt body, prepared fixtures, and assertions are identical to the comm-channel variants; the only difference is the message-delivery transport. Where the comm-channel variant calls `comm.send_message(prompt)`, the Slack variant calls `sl_send_prompt(sl, prompt)`, which makes the driver bot post `chat.postMessage` into the shared channel. Because the LLM is deterministic, no `try_with_clarification` retries are needed; every test either passes on the first attempt or fails outright.
+All 24 tests mirror the corresponding `Autotests/mock/test_*_mock.py` files. The prompt body, prepared fixtures, and assertions are the same as in the comm-channel variants, and so is the mock-LLM answer, except in `test_git_pull_public_slack_mock.py`, which still clones in the foreground. Where the comm-channel variant calls `comm.send_message(prompt)`, the Slack variant calls `sl_send_prompt(sl, prompt)`, which makes the driver bot post `chat.postMessage` into the shared channel. Because the LLM is deterministic, no `try_with_clarification` retries are needed; every test either passes on the first attempt or fails outright.
 
 ## Creating files
 
@@ -245,7 +245,7 @@ Runs a syntactically broken pre-created script and captures stdout and stderr to
 
 Runs `dateupdate.sh` exactly 10 times in a row.
 
-- Mock answer: ten consecutive `(shell "{SCRIPT_FILE}")` calls (one per run).
+- Mock answer: ten consecutive `(shell "sh {SCRIPT_FILE}")` calls (one per run).
 - Checks: `update.txt` exists with mtime ≥ start, has ≥ 10 lines, every line contains date-like digits.
 
 ## Internet search
@@ -316,7 +316,7 @@ Agent clones a public repository over anonymous HTTPS, no token.
 
 Agent runs `git init`, `git add`, `git commit` locally inside the container.
 
-- Mock answer: chain of `(shell "git -C {TARGET_DIR} init") (shell "...write file...") (shell "git -C {TARGET_DIR} add -A") (shell "git -C {TARGET_DIR} commit -m 'add hello <run_id>'")`.
+- Mock answer: chain of `(shell "git -C {TARGET_DIR} init") (write-file "<file>" "<marker>") (shell "git -C {TARGET_DIR} add -A") (shell "git -C {TARGET_DIR} commit -m \"add hello <run_id>\"")`.
 - Checks: HEAD has at least one commit, commit subject contains the `run_id` (warning, not failure), the file is present in the tree.
 
 ### 19. test_git_push_to_remote_slack_mock.py
@@ -333,7 +333,7 @@ Agent clones a remote, creates branch `qa/run-<id>`, adds a file, commits, and p
 
 Agent writes `mkdirs.sh` and runs it. The script must create `test1`, `test2`, `test3` inside `/tmp/test_dirs/`.
 
-- Mock answer: `(write-file "{SCRIPT_PATH}" "#!/bin/bash\nmkdir -p .../test1 .../test2 .../test3\n") (shell "chmod +x {SCRIPT_PATH}") (shell "{SCRIPT_PATH}")`.
+- Mock answer: `(write-file "{SCRIPT_PATH}" "#!/bin/bash\nmkdir -p .../test1 .../test2 .../test3\n") (shell "chmod +x {SCRIPT_PATH}") (shell "sh {SCRIPT_PATH}")`.
 - Checks: all three directories exist with fresh mtimes; agent invoked `(write-file ...)` referencing `mkdirs.sh`; agent invoked `(shell ...)` to run the script. Diagnostics print `wf=<count>, sh=<count>, perms=<...>` to make stalls obvious.
 
 ### 21. test_memory_episode_slack_mock.py
@@ -364,5 +364,5 @@ Two-turn flow: send a message tagged with a unique keyword (no `remember`), capt
 
 Four-step pipeline: search NY weather → write `w.txt` with the forecast → write `p.sh` extracting the first Celsius number into `t.txt` → run `p.sh`. Because the mock controls only the LLM dispatch (the network-bound `websearch` tool is not exercised), the mocked response provides the forecast text directly.
 
-- Mock answer: `(write-file "/tmp/wflow/w.txt" "New York tomorrow: clear, high 22 degrees Celsius.") (write-file "/tmp/wflow/p.sh" "#!/bin/bash\ngrep -oE '[0-9]+' /tmp/wflow/w.txt | head -1 > /tmp/wflow/t.txt\n") (shell "chmod +x /tmp/wflow/p.sh") (shell "/tmp/wflow/p.sh")`.
+- Mock answer: `(write-file "/tmp/wflow/w.txt" "New York tomorrow: clear, high 22 degrees Celsius.") (write-file "/tmp/wflow/p.sh" "#!/bin/bash\ngrep -oE '[0-9]+' /tmp/wflow/w.txt | head -1 > /tmp/wflow/t.txt\n") (shell "chmod +x /tmp/wflow/p.sh") (shell "sh /tmp/wflow/p.sh")`.
 - Checks: `w.txt` exists; history contains `(write-file ...)` referencing `w.txt`; `p.sh` exists with executable bit; history contains `(write-file ...)` or `(shell ...)` referencing `p.sh`; `t.txt` exists; history contains `(shell ...)` running `p.sh`; `t.txt` content is a number in the range [-60; 120]; content length ≤ 40 characters.

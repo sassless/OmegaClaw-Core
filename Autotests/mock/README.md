@@ -176,7 +176,7 @@ Runs a syntactically broken pre-created script and captures stdout and stderr to
 
 Runs `dateupdate.sh` exactly 10 times in a row.
 
-- Mock answer: ten consecutive `(shell "{SCRIPT_FILE}")` calls (one per run).
+- Mock answer: ten consecutive `(shell "sh {SCRIPT_FILE}")` calls (one per run).
 - Checks: `update.txt` exists with mtime ≥ start, has ≥ 10 lines, every line contains date-like digits.
 
 ## Internet search
@@ -240,14 +240,14 @@ Gives a multi-step task ("restarting servers alpha → beta → gamma, just fini
 
 Agent clones a public repository over anonymous HTTPS, no token.
 
-- Mock answer: `(shell "rm -rf {TARGET_DIR} && git clone {remote} {TARGET_DIR}")`.
+- Mock answer: one `(shell ...)` that runs `git clone --depth 1 {remote} {TARGET_DIR}` in the background, with up to three attempts and a log file, so that the call returns before the 5-second `shell` timeout.
 - Checks: `.git/` appears, HEAD points to a real commit, ≥ 1 tracked file in HEAD, origin matches the expected remote URL (normalized, trailing `/` and `.git` ignored).
 
 ### 18. test_git_local_commit_mock.py
 
 Agent runs `git init`, `git add`, `git commit` locally inside the container.
 
-- Mock answer: chain of `(shell "git -C {TARGET_DIR} init") (shell "...write file...") (shell "git -C {TARGET_DIR} add -A") (shell "git -C {TARGET_DIR} commit -m 'add hello <run_id>'")`.
+- Mock answer: chain of `(shell "git -C {TARGET_DIR} init") (write-file "<file>" "<marker>") (shell "git -C {TARGET_DIR} add -A") (shell "git -C {TARGET_DIR} commit -m \"add hello <run_id>\"")`.
 - Checks: HEAD has at least one commit, commit subject contains the `run_id` (warning, not failure), the file is present in the tree.
 
 ### 19. test_git_push_to_remote_mock.py
@@ -264,7 +264,7 @@ Agent clones a remote, creates branch `qa/run-<id>`, adds a file, commits, and p
 
 Agent writes `mkdirs.sh` and runs it. The script must create `test1`, `test2`, `test3` inside `/tmp/test_dirs/`.
 
-- Mock answer: `(write-file "{SCRIPT_PATH}" "#!/bin/bash\nmkdir -p .../test1 .../test2 .../test3\n") (shell "chmod +x {SCRIPT_PATH}") (shell "{SCRIPT_PATH}")`.
+- Mock answer: `(write-file "{SCRIPT_PATH}" "#!/bin/bash\nmkdir -p .../test1 .../test2 .../test3\n") (shell "chmod +x {SCRIPT_PATH}") (shell "sh {SCRIPT_PATH}")`.
 - Checks: all three directories exist with fresh mtimes; agent invoked `(write-file ...)` referencing `mkdirs.sh`; agent invoked `(shell ...)` to run the script. Diagnostics print `wf=<count>, sh=<count>, perms=<...>` to make stalls obvious.
 
 ### 21. test_memory_episode_mock.py
@@ -295,31 +295,31 @@ Two-turn flow: send a message tagged with a unique keyword (no `remember`), capt
 
 Four-step pipeline: search NY weather → write `w.txt` with the forecast → write `p.sh` extracting the first Celsius number into `t.txt` → run `p.sh`. Because the mock controls only the LLM dispatch (the network-bound `websearch` tool is not exercised), the mocked response provides the forecast text directly.
 
-- Mock answer: `(write-file "/tmp/wflow/w.txt" "New York tomorrow: clear, high 22 degrees Celsius.") (write-file "/tmp/wflow/p.sh" "#!/bin/bash\ngrep -oE '[0-9]+' /tmp/wflow/w.txt | head -1 > /tmp/wflow/t.txt\n") (shell "chmod +x /tmp/wflow/p.sh") (shell "/tmp/wflow/p.sh")`.
+- Mock answer: `(write-file "/tmp/wflow/w.txt" "New York tomorrow: clear, high 22 degrees Celsius.") (write-file "/tmp/wflow/p.sh" "#!/bin/bash\ngrep -oE '[0-9]+' /tmp/wflow/w.txt | head -1 > /tmp/wflow/t.txt\n") (shell "chmod +x /tmp/wflow/p.sh") (shell "sh /tmp/wflow/p.sh")`.
 - Checks: `w.txt` exists; history contains `(write-file ...)` referencing `w.txt`; `p.sh` exists with executable bit; history contains `(write-file ...)` or `(shell ...)` referencing `p.sh`; `t.txt` exists; history contains `(shell ...)` running `p.sh`; `t.txt` content is a number in the range [-60; 120]; content length ≤ 40 characters.
 
 ## Memory tiers and transitions
 
 ### 25. test_last_skill_results_visible_next_turn_mock.py
 
-Verifies the one-iteration carry of `LAST_SKILL_USE_RESULTS`. Output of a tool call in turn N is exposed to the LLM at turn N+1 via this prompt section. The test does not require the agent to "behave intelligently"; it confirms the carry exists.
+Verifies the one-iteration carry of `LAST_SKILL_USE_RESULTS`. The result of a tool call in turn N is exposed to the LLM at turn N+1 via this prompt section. The test does not require the agent to "behave intelligently"; it confirms the carry exists.
 
-- Mock answer (turn 1): `(metta "(+ 1 1)")`.
-- Checks: the docker log line `CHARS_SENT:` for the next iteration contains a `LAST_SKILL_USE_RESULTS` section that reflects the metta output.
+- Mock answer (turn 1): `(metta "(quote <sentinel>)") (send "computed")`.
+- Checks: the `CHARS_SENT:` line for the next iteration contains the `LAST_SKILL_USE_RESULTS` marker and the sentinel.
 
 ### 26. test_memory_history_byte_window_truncation_mock.py
 
 Verifies that `history.metta` is a sliding byte-window. A marker placed early in the trace, then pushed past the `maxHistory` boundary by a large follow-up entry, must remain in the file on disk yet be absent from the trailing `maxHistory` bytes (the slice fed back to the agent as HISTORY).
 
-- Mock answer: an initial `(remember ...)` with the marker, followed by a sequence that emits enough bytes to evict it from the trailing window.
+- Turn 1 mock answer: `(send "<early_marker>")`. Turn 2 mock answer: `(remember "<padding_marker>+~35K bytes of A") (send "padded")`, which pushes the marker out of the trailing window.
 - Checks: marker present in `history.metta` on disk; marker absent from the trailing `maxHistory` bytes returned by `getHistory`.
 
 ### 27. test_memory_pin_window_visibility_mock.py
 
 A `(pin ...)` emitted in turn 1 must land in `history.metta` and remain inside the agent's rolling HISTORY window when turn 2 fires.
 
-- Turn 1 mock answer: `(pin "<marker>")`.
-- Turn 2 mock answer: `(send "ack")`.
+- Turn 1 mock answer: `(pin "<marker>") (send "Pinned <marker>.")`.
+- Turn 2 mock answer: `(send "I pinned <marker> previously.")`.
 - Checks: the pin block is on disk; the pin block sits within the trailing `maxHistory` byte window at turn 2.
 
 ### 28. test_pin_invisible_within_iteration_mock.py
@@ -336,7 +336,7 @@ A marker pushed out of the trailing `maxHistory` window is still recoverable via
 - Turn 1 mock answer: a beacon `(send "<marker>")`; the test captures the timestamp.
 - Turn 2 mock answer: ~35K bytes of padding designed to evict the beacon from the trailing HISTORY window.
 - Turn 3 mock answer: `(episodes "<seed_ts>")` against the captured timestamp.
-- Checks: `(episodes ...)` was invoked with the captured timestamp. The tool's return value itself is mock-irrelevant; the test exercises the path against history the agent can no longer see in HISTORY.
+- Checks: `(episodes ...)` was invoked with the captured timestamp. The tool result itself is mock-irrelevant; the test exercises the path against history the agent can no longer see in HISTORY.
 
 ### 30. test_transition_metta_to_remember_mock.py
 
@@ -389,7 +389,7 @@ Delegates an empty message - no network call and no worker thread, since the too
 Verifies the "new session per delegation" contract from the plugin README: two independent delegations in the same turn must not share a Gateway session:
 
 - Mock answer: two `(metta (write-file ... (delegate-task-to-openclaw-agent "Reply with exactly: FIRST-<run_id>" / "SECOND-<run_id>")))` calls, then `(send "Both delegations saved <run_id>")`.
-- Checks: both envelopes are `accepted` with different `id` values; an `id=<task id> status=ok` record for each of them later reaches history (keyed on the task id for the reason given under test 35); the run's slice of history carries two distinct `responseId=` values. The scoping to this run's window keeps ids left by test 35 from satisfying the check on their own.
+- Checks: both envelopes are `accepted` with different `id` values; an `id=<task id> status=ok` record for each of them later reaches history (keyed on the task id for the reason given under test 33); the run's slice of history carries two distinct `responseId=` values. The scoping to this run's window keeps ids left by test 33 from satisfying the check on their own.
 
 ### 36. test_delegate_stays_async_under_a_slow_gateway_mock
 

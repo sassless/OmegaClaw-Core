@@ -23,7 +23,7 @@ docker build -t omega:mock .
 ## 3. Start the container with the Test provider
 
 The container connects back to the host on TCP port 9765 to reach the mock LLM controller.
-`TEST_API_KEY` must hold the host IP that is reachable from inside the container. Under the
+`TEST_SERVER_IP` must hold the host IP that is reachable from inside the container. Under the
 default Docker bridge this is `172.17.0.1`.
 
 ```
@@ -37,7 +37,7 @@ docker run -d -it \
   --tmpfs /tmp:size=64m,mode=1777,exec \
   --tmpfs /run:size=16m,mode=755 \
   --tmpfs /var/tmp:size=64m,mode=1777,exec \
-  -e TEST_API_KEY=172.17.0.1 \
+  -e TEST_SERVER_IP=172.17.0.1 \
   -e OMEGA_AUTH_SECRET=0000 \
   omega:mock \
   IRC_channel="#omega_mock" \
@@ -49,7 +49,7 @@ Notes:
 
 - `provider="Test"` selects the mock LLM dispatcher.
 - `embeddingprovider="Local"` keeps the embedding model in-process (no network call).
-- `TEST_API_KEY=172.17.0.1` is the host's docker-bridge address.
+- `TEST_SERVER_IP=172.17.0.1` is the host's docker-bridge address.
 - `OMEGA_AUTH_SECRET=0000` matches the value the test harness sends as `auth 0000`.
 - The IRC channel can be any unique string; pick one not used by another concurrent run.
 
@@ -90,10 +90,11 @@ docker volume rm omega-mock-memory
 
 ## Tests description
 
-All seven tests exercise the agent's memory machinery (working memory via `pin`, long-term
-memory via `remember`, history window, episodes lookup) using deterministic mock-LLM answers.
-Each test sends one or more prompts via IRC, registers a fixed answer for each prompt, and
-verifies the resulting tool calls and side effects (`history.metta`, ChromaDB, docker logs).
+All seven tests live in `Autotests/mock/` and exercise the agent's memory machinery (working
+memory via `pin`, long-term memory via `remember`, history window, episodes lookup) using
+deterministic mock-LLM answers. Each test sends one or more prompts over the test channel,
+registers a fixed answer for each prompt, and verifies the resulting tool calls and side effects
+(`history.metta`, ChromaDB, docker logs).
 
 ### 1. test_memory_pin_window_visibility_mock.py
 
