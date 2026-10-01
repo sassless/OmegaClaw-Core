@@ -77,5 +77,5 @@ Change any of these by editing the `configure` calls in `initMemory` or passing 
 
 ## Next steps
 
-- [reference-skills-memory.md](./reference-skills-memory.md) — precise signatures and limits.
+- [reference-tools-memory.md](./reference-tools-memory.md) — precise signatures and limits.
 - [reference-internals-memory-store.md](./reference-internals-memory-store.md) — the triplet layout in detail.

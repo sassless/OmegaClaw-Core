@@ -60,4 +60,4 @@ Errors are appended to the episodic trace so the agent sees them and can self-co
 ## See also
 
 - [introduction.md#architecture](./introduction.md#architecture) — the architecture diagram.
-- [reference-internals-skill-dispatch.md](./reference-internals-skill-dispatch.md) — how individual skills resolve.
+- [reference-internals-tool-dispatch.md](./reference-internals-tool-dispatch.md) — how individual skills resolve.

@@ -29,7 +29,7 @@ There are many ways to contribute to Omega:
 
 - **Bug fixes**: Fix issues reported by the community in the [issue tracker](https://github.com/singnet/Omega/issues) or found during your own testing.  
 - **New features**: Propose and implement new capabilities for the agent framework.  
-- **New skills:** Add new MeTTa skills following the skill dispatch architecture (see [tutorial-03](docs/tutorial-03-writing-a-custom-skill.md)).  
+- **New skills:** Add new MeTTa skills following the skill dispatch architecture (see [tutorial-03](docs/tutorial-03-writing-a-custom-tool.md)).  
 - **New channels:** Build communication channel adapters (see [tutorial-04](docs/tutorial-04-adding-a-channel.md)).  
 - **New plugins**: Develop new plugins, or extensions that enhance Omega's functionality.  
 - **Documentation**: Improve or expand documentation, tutorials, or inline code comments.  
@@ -158,7 +158,7 @@ We follow [Conventional Commits](https://www.conventionalcommits.org/) prefixes:
 
 ### MeTTa Code
 
-- Follow the existing skill dispatch pattern documented in [reference-internals-skill-dispatch.md](docs/reference-internals-skill-dispatch.md).  
+- Follow the existing skill dispatch pattern documented in [reference-internals-tool-dispatch.md](docs/reference-internals-tool-dispatch.md).  
 - New skills must conform to the **Signature → Purpose → Parameters → Returns → Examples → Notes/Limits** template (see existing reference docs for examples).  
 - Keep the MeTTa core (`src/*.metta`) minimal — the design goal is simplicity and transparency.  
 - Add inline comments explaining non-obvious symbolic reasoning patterns.
@@ -189,8 +189,8 @@ Omega uses flat Markdown files in the [`docs/`](docs/) directory. Documentation 
 | Prefix | Type | Example |
 | :---- | :---- | :---- |
 | `intro-*` | Conceptual introduction | `introduction.md` |
-| `tutorial-NN-*` | Numbered, task-oriented walkthrough | `tutorial-03-writing-a-custom-skill.md` |
-| `reference-*` | API, engines, internals | `reference-skills-memory.md` |
+| `tutorial-NN-*` | Numbered, task-oriented walkthrough | `tutorial-03-writing-a-custom-tool.md` |
+| `reference-*` | API, engines, internals | `reference-tools-memory.md` |
 
 ### Guidelines
 

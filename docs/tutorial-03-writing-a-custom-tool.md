@@ -66,5 +66,5 @@ The LLM should emit `(word-count "the quick brown fox")` and respond with `4`.
 
 ## Next steps
 
-- [reference-internals-skill-dispatch.md](./reference-internals-skill-dispatch.md) — how dispatch works.
+- [reference-internals-tool-dispatch.md](./reference-internals-tool-dispatch.md) — how dispatch works.
 - [reference-internals-extension-points.md](./reference-internals-extension-points.md) — other places to hook in.

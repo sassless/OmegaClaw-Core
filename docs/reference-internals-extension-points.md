@@ -9,7 +9,7 @@ Most common extension. Two edits:
 1. A line in `getSkills` (`src/skills.metta`) so the LLM knows the skill exists.
 2. A `(= (my-skill $arg) ...)` definition, either pure MeTTa or a `py-call` / `translatePredicate`.
 
-Full walkthrough: [tutorial-03-writing-a-custom-skill.md](./tutorial-03-writing-a-custom-skill.md).
+Full walkthrough: [tutorial-03-writing-a-custom-tool.md](./tutorial-03-writing-a-custom-tool.md).
 
 ## Add a channel
 

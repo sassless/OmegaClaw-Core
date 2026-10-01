@@ -168,7 +168,7 @@ They are complementary, not overlapping. Long-term memory *feeds* the AtomSpace 
 
 ## See also
 
-- [reference-skills-memory.md](./reference-skills-memory.md) — user-facing surface.
+- [reference-tools-memory.md](./reference-tools-memory.md) — user-facing surface.
 - [reference-configuration.md](./reference-configuration.md) — memory tunables.
 - [introduction.md#the-hybrid-thesis](./introduction.md#the-hybrid-thesis) — why this layout exists.
 - [tutorial-01-teaching-memories.md](./tutorial-01-teaching-memories.md) — hands-on use.

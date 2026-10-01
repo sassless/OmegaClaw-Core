@@ -16,7 +16,7 @@
 | `(write-file "path" "contents")` | Overwrite the file. |
 | `(append-file "path" "line")` | Append a line (with trailing newline) to the file. |
 
-See [reference-skills-io.md](./reference-skills-io.md) for exact signatures.
+See [reference-tools-io.md](./reference-tools-io.md) for exact signatures.
 
 ## 1. Inspect the environment
 
@@ -55,5 +55,5 @@ The agent should `(append-file "/tmp/session.log" "...")` on each subsequent tur
 
 ## Next steps
 
-- [tutorial-03-writing-a-custom-skill.md](./tutorial-03-writing-a-custom-skill.md) — extend the surface with your own skill.
-- [reference-skills-io.md](./reference-skills-io.md) — full details and edge cases.
+- [tutorial-03-writing-a-custom-tool.md](./tutorial-03-writing-a-custom-tool.md) — extend the surface with your own skill.
+- [reference-tools-io.md](./reference-tools-io.md) — full details and edge cases.

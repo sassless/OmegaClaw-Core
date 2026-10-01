@@ -175,6 +175,6 @@ Starting with each premise at `c = 0.9`:
 - [reference-lib-nal.md](./reference-lib-nal.md) — every NAL rule and truth formula.
 - [reference-lib-pln.md](./reference-lib-pln.md) — PLN rule catalogue.
 - [reference-lib-ona.md](./reference-lib-ona.md) — the third (temporal) engine.
-- [reference-skills-reasoning.md](./reference-skills-reasoning.md) — the `metta` skill signature.
+- [reference-tools-reasoning.md](./reference-tools-reasoning.md) — the `metta` skill signature.
 - [tutorial-07-grounded-reasoning.md](./tutorial-07-grounded-reasoning.md) — external grounding.
 - [tutorial-08-reliable-reasoning.md](./tutorial-08-reliable-reasoning.md) — best practices.
