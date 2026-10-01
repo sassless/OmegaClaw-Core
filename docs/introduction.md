@@ -12,13 +12,13 @@ This page is the conceptual introduction: what Omega is, why the hybrid architec
 
 ## What Omega does
 
-- Runs a token-efficient agentic loop that receives messages, selects skills, and acts.
+- Runs a token-efficient agentic loop that receives messages, selects tools, and acts.
 - Delegates reasoning to one of two formal engines, orchestrated by the LLM:
   - **NAL** — Non-Axiomatic Logic, symbolic inference under uncertainty.
   - **PLN** — Probabilistic Logic Networks, probabilistic higher-order reasoning.
   - ONA (OpenNARS for Applications) is a planned third engine but is **not installed by default** — see [reference-lib-ona.md](./reference-lib-ona.md) for the current experimental status.
 - Maintains a **three-tier memory** architecture (working, long-term, AtomSpace — described below).
-- Exposes an extensible **skill system** covering memory, shell and file I/O, communication channels, web search, remote agents, and formal reasoning.
+- Exposes an extensible **set of tools** covering memory, shell and file I/O, communication channels, web search, remote agents, and formal reasoning.
 
 ---
 
@@ -46,11 +46,12 @@ Each reasoning hop is a synchronous five-step dance:
 
 ```
 1. NEURAL PHASE
-   LLM synthesizes context, emits a formal command
-   (e.g. (metta "(|- ...)"))
+   LLM synthesizes context, emits a tool call
+   (e.g. metta (|- ...))
 
 2. INTERCEPTION
-   The agent framework intercepts the command;
+   The agent framework intercepts the tool call
+   and parses it into an s-expression;
    LLM generation is suspended.
 
 3. SYMBOLIC PHASE
@@ -115,7 +116,7 @@ run.metta                 entry point: (omega)
 lib_omega.metta           loads all submodules
 ├── src/loop.metta        agentic loop, turn structure
 ├── src/memory.metta      long-term memory + history
-├── src/skills.metta      callable skill surface
+├── src/skills.metta      tool list and built-in tools
 ├── src/channels.metta    receive/send dispatch
 ├── src/utils.metta       utility, string ops, time
 ├── src/config.metta      configure
@@ -146,8 +147,8 @@ Each iteration of `(omega $k)` in `src/loop.metta` performs:
 │                     LAST_SKILL_USE_RESULTS +                │
 │                     HISTORY + TIME                          │
 │ 3. LLM call         Anthropic / OpenAI / ASICloud / ASI:One │
-│ 4. sread / balance  parse response into skill s-exprs       │
-│ 5. eval each skill  (remember ...), (metta ...), ...        │
+│ 4. sread / balance  parse tool calls into s-exprs           │
+│ 5. eval each call   (remember ...), (metta ...), ...        │
 │ 6. addToHistory     append human msg + response +           │
 │                     any errors                              │
 │ 7. sleep            sleepInterval seconds                   │
@@ -157,7 +158,7 @@ Each iteration of `(omega $k)` in `src/loop.metta` performs:
 
 If no new message arrives and the `loops` counter hits zero, the agent idles until `nextWakeAt`, then runs one wake loop for background work.
 
-The neural↔symbolic sub-cycle described in [The hybrid thesis](#the-hybrid-thesis) above kicks in **inside** step 5 whenever a skill-tuple contains `(metta (|- ...))` or `(metta (|~ ...))`.
+The neural↔symbolic sub-cycle described in [The hybrid thesis](#the-hybrid-thesis) above kicks in **inside** step 5 whenever a tool call is `metta (|- ...)` or `metta (|~ ...)`.
 
 ### Division of labor
 
@@ -278,9 +279,17 @@ Three distinct stores with different semantics:
 
 Full detail in [reference-internals-memory-store.md](./reference-internals-memory-store.md).
 
+### Tools
+
+A tool is an action the agent can take during a turn, such as `send`, `shell`, `remember`, `query` or `metta`. A tool has a name, a one-line description and a list of arguments, and it runs as a MeTTa function. The built-in tools are listed by `getStaticSkills` in `src/skills.metta`. A plugin adds a tool with `add-skill` and removes it with `remove-skill`. The prompt lists all available tools in its `SKILLS:` section.
+
+A tool call is the LLM's request to run a tool. The LLM writes each tool call on its own line as the tool name followed by its arguments, and the prompt asks for up to five tool calls per turn. Omega turns each line into a MeTTa expression and evaluates it. The line `send Hello`, for instance, becomes `(send "Hello")`. The value a tool returns is its tool result, and Omega puts the results of a turn into the `LAST_SKILL_USE_RESULTS` section of the next prompt.
+
 ### Skills
 
-The set of callable operations available to the agent at each turn — plain MeTTa s-expressions like `(remember "...")`, `(shell "ls")`, `(metta (|- ...))`. Defined in `src/skills.metta` and `src/memory.metta`.
+A skill is a directory with a `SKILL.md` file in the [Agent Skills](https://agentskills.io/specification) format. The file holds Markdown instructions that tell the agent how to carry out a task step by step, and the directory can also hold a `skill.metta` file with the tools the skill needs. The workflow plugin loads skills and refers to a loaded skill as the active workflow. While a skill is loaded, its instructions are part of the prompt and its tools appear in the `SKILLS:` section. See [plugins/workflow/README.md](../plugins/workflow/README.md).
+
+The word `skill` means a tool in some names from the code, such as `add-skill`, `remove-skill`, `getSkills`, `getStaticSkills`, `src/skills.metta`, `src/skills.pl`, the `SKILLS:` and `LAST_SKILL_USE_RESULTS` prompt sections, and the `skill` entries in `skill.metta`. The documentation quotes these names as they are.
 
 ### Channels
 
@@ -331,7 +340,7 @@ The failure mode where a flawed premise is run through the formal engine and eme
 
 - **Transparency by design, not by post-hoc explanation.** Every conclusion can be traced to its premises, rule, and truth-value math.
 - **Simplicity.** A small core that is readable end-to-end.
-- **Extensibility.** New skills, channels, tools, and engines are short additions — see [reference-internals-extension-points.md](./reference-internals-extension-points.md).
+- **Extensibility.** New tools, channels and engines are short additions — see [reference-internals-extension-points.md](./reference-internals-extension-points.md).
 - **Flexibility in memory representation.** Memory items coexist with other Hyperon components in the same AtomSpace; no single representation is hardcoded.
 
 ### When to use Omega

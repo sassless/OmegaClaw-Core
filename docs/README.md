@@ -25,7 +25,7 @@ Numbered in suggested reading order. Each tutorial is self-contained.
 
 - [tutorial-01-teaching-memories.md](./tutorial-01-teaching-memories.md) — Use `remember`, `query`, `episodes`, and `pin`
 - [tutorial-02-shell-and-files.md](./tutorial-02-shell-and-files.md) — `shell`, `read-file`, `write-file`, `append-file`
-- [tutorial-03-writing-a-custom-tool.md](./tutorial-03-writing-a-custom-tool.md) — Add a new MeTTa skill end-to-end
+- [tutorial-03-writing-a-custom-tool.md](./tutorial-03-writing-a-custom-tool.md) — Add a new MeTTa tool end-to-end
 - [tutorial-04-adding-a-channel.md](./tutorial-04-adding-a-channel.md) — Build a new communication channel adapter
 - [tutorial-05-reasoning-with-nal-pln.md](./tutorial-05-reasoning-with-nal-pln.md) — Invoke NAL and PLN through `(metta ...)` with worked examples
 - [tutorial-07-grounded-reasoning.md](./tutorial-07-grounded-reasoning.md) — External grounding — the primary reliability mitigation
@@ -43,9 +43,9 @@ Numbered in suggested reading order. Each tutorial is self-contained.
 - [reference-orchestration.md](./reference-orchestration.md) — Engine selection, stopping criteria, action thresholds, defense stack
 - [reference-failure-modes.md](./reference-failure-modes.md) — Documented failures, error rates, mitigations
 
-### Skills
+### Tools
 
-User-facing MeTTa skills the agent invokes. Each page follows the template **Signature → Purpose → Parameters → Returns → Examples → Notes/Limits**.
+Built-in tools the agent can call. Each page follows the template **Signature → Purpose → Parameters → Returns → Examples → Notes/Limits**.
 
 - [reference-tools-memory.md](./reference-tools-memory.md) — `remember`, `query`, `episodes`, `pin`
 - [reference-tools-io.md](./reference-tools-io.md) — `shell`, `read-file`, `write-file`, `write-file-b64`, `append-file`
@@ -71,5 +71,5 @@ User-facing MeTTa skills the agent invokes. Each page follows the template **Sig
 
 - [reference-internals-loop.md](./reference-internals-loop.md) — `src/loop.metta` lifecycle and turn structure
 - [reference-internals-memory-store.md](./reference-internals-memory-store.md) — The three-tier memory architecture, including `knowledge-priors` markdown seeding into ChromaDB
-- [reference-internals-tool-dispatch.md](./reference-internals-tool-dispatch.md) — How `(skill args)` calls resolve
-- [reference-internals-extension-points.md](./reference-internals-extension-points.md) — Where to hook in new skills, tools, channels, LLMs, engines
+- [reference-internals-tool-dispatch.md](./reference-internals-tool-dispatch.md) — How tool calls are parsed and dispatched
+- [reference-internals-extension-points.md](./reference-internals-extension-points.md) — Where to hook in new tools, channels, LLM providers and engines
