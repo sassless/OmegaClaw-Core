@@ -12,13 +12,13 @@ Defined in `src/skills.metta`; the `shell` tool is backed by `src/skills.pl`, th
 ```
 
 ### Purpose
-Execute a shell command and return its standard output.
+Execute a shell command and return what it prints to standard output and standard error.
 
 ### Parameters
-- `command` — a string without apostrophes. Apostrophes are rejected by the Prolog helper.
+- `command` — the command line. `shell/2` passes it unchanged to `sh -c` and does not check for apostrophes, although the tool's line in the prompt asks the LLM to leave them out.
 
 ### Returns
-The captured stdout of the command as a string.
+The captured stdout and stderr of the command as one string, or `timeout_error` if the command is still running after 5 seconds. A failing command still returns its output, and the exit status is not reported.
 
 ### Examples
 ```metta
@@ -28,6 +28,7 @@ The captured stdout of the command as a string.
 
 ### Notes / Limits
 - Runs with the permissions of the Omega process.
+- Runs as `timeout -k 1s 5s sh -c <command>`. A command still running after 5 seconds gets a TERM signal, and a KILL signal one second later.
 - No sandboxing. Run in a container for anything resembling untrusted use.
 - Prefer writing complex commands to a file and invoking the file rather than embedding quotes-within-quotes.
 

@@ -1,6 +1,6 @@
 # Tutorial 05 — Reasoning with NAL and PLN
 
-**Goal:** invoke Non-Axiomatic Logic and Probabilistic Logic Networks from inside Omega using the `(metta ...)` tool, and read the truth values the engines emit.
+**Goal:** invoke Non-Axiomatic Logic and Probabilistic Logic Networks from inside Omega using the `metta` tool, and read the truth values the engines emit.
 
 ## Prerequisites
 
@@ -129,7 +129,7 @@ is pingu a bird?
 A well-behaved response:
 
 1. Atomizes the two premises.
-2. Emits `(metta (|~ ...))` with those premises.
+2. Emits a `metta (|~ ...)` line with those premises, which the parser passes to the tool as one string, even when the expression spans several lines.
 3. Reads the `(stv ...)` of the conclusion.
 4. Checks the action threshold (ACT / HYPOTHESIZE / IGNORE).
 5. `send`s an answer that includes the derived confidence and the rule used.

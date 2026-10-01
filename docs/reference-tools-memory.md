@@ -1,8 +1,8 @@
 # Reference — Memory Tools
 
-Defined in `src/memory.metta` and catalogued in `src/skills.metta`.
+`remember`, `query` and `episodes` are defined in `src/memory.metta`, `pin` in `src/skills.metta`. All four are listed in `getStaticSkills` in `src/skills.metta`.
 
-All four tools accept quoted string arguments. Variables are not permitted in LLM-generated calls.
+Each of the four tools takes one string argument. The LLM writes it after the tool name without quotes, for example `remember user prefers dark mode`, and the parser turns the line into `(remember "user prefers dark mode")`. The prompt asks the LLM not to use variables, and a `$x` in the line would arrive as plain text.
 
 ---
 
@@ -20,7 +20,7 @@ Store a string in long-term embedding memory as the triplet `(timestamp, atom, e
 - `string` — the text to remember. Use short, self-contained phrases for best recall.
 
 ### Returns
-The result of the ChromaDB write (internally). The agent treats a successful call as an effectful step.
+The symbol `REMEMBER-SUCCESS`, returned after the ChromaDB write.
 
 ### Examples
 ```metta
@@ -104,7 +104,7 @@ Append a working-memory note to the episodic trace so the next turn can see it i
 - `string` — the note. Typical uses: intermediate results, plans for the next turn, checklists.
 
 ### Returns
-Success / failure of the append.
+The symbol `PIN-SUCCESS`. `pin` stores nothing itself. The note reaches `HISTORY` because `addToHistory` appends the whole reply, the `pin` call included, to `memory/history.metta`.
 
 ### Examples
 ```metta

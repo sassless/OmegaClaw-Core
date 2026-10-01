@@ -1,6 +1,6 @@
 # Reference — Communication Tools
 
-Defined in `src/channels.metta`. Dispatch depends on the `commchannel` configuration parameter (see [reference-configuration.md](./reference-configuration.md)).
+`send` and `receive` are defined in `src/channels.metta`, `websearch` in `src/skills.metta`. The `commchannel` configuration parameter selects the channel that `send` and `receive` use (see [reference-configuration.md](./reference-configuration.md)).
 
 ---
 
@@ -39,7 +39,7 @@ No meaningful return value. Used for its side effect.
 ```
 
 ### Purpose
-Return the latest message received on the active channel since the previous call. Invoked once per loop iteration by `src/loop.metta`.
+Return the latest message received on the active channel since the previous call. `receive` is not a tool. It is not in the tool list or among the names the parser accepts, so the LLM cannot call it. `src/loop.metta` calls it once per loop iteration.
 
 ### Parameters
 None.
@@ -48,7 +48,7 @@ None.
 A string. Empty if nothing new has arrived.
 
 ### Examples
-The agent does not normally call `receive` itself; the loop wraps it:
+The loop calls `receive` itself:
 
 ```metta
 (let $msgrcv (string-safe (repr (receive))) ...)

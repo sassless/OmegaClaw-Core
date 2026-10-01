@@ -11,56 +11,64 @@
 
 A tool is three things:
 
-1. **An entry in the tool list** in `src/skills.metta` (the `getSkills` list) so the LLM learns it exists.
+1. **An entry in the tool list** in `src/skills.metta` (the `getStaticSkills` list) so the LLM learns it exists, and the tool name in `STATIC_LLM_COMMANDS` in `src/helper.py` so the parser accepts calls to it.
 2. **A MeTTa definition** of how the tool executes. Pure-MeTTa tools are written directly; tools that need system access delegate to Python or Prolog.
 3. **Optional Python/Prolog glue** imported through `py-call` or `translatePredicate`.
 
+A MeTTa plugin can add a tool without editing `src/skills.metta` and `src/helper.py`. It defines the tool in its own `.metta` file and calls `add-skill` from its `loadOmegaPlugin`. `add-skill` adds the tool's line to the prompt and registers the name with the parser (see [reference-plugin-api.md](./reference-plugin-api.md#other-agent-related-apis)). For this example the call would be `(add-skill word-count "Count space-separated words in a string" (string))`.
+
 ## Example: a `word-count` tool
 
-We'll add `(word-count "some text")` that returns the number of whitespace-separated tokens.
+We'll add `word-count`, which returns the number of space-separated words in its argument.
 
-### Step 1 — Declare it in `getSkills`
+### Step 1 — Declare it in `getStaticSkills`
 
-Open `src/skills.metta` and add a line inside the `getSkills` list:
+Open `src/skills.metta` and add this line inside the `getStaticSkills` list, after the `version` line:
 
 ```metta
-"- Count whitespace-separated words in a string: (word-count string_in_quotes)"
+"- Count space-separated words in a string: word-count string"
 ```
 
-This text is concatenated into the prompt so the LLM knows the tool is callable.
+This text goes into the `SKILLS:` section of the prompt, so the LLM knows the tool is callable.
 
-### Step 2 — Define the implementation
+### Step 2 — Register the name with the parser
 
-Still in `src/skills.metta`, add:
+Open `src/helper.py` and add `"word-count",` to the `STATIC_LLM_COMMANDS` set. Without it the parser turns every `word-count` line into `(Error UNKNOWN_SKILL_CALL "...")`, and the loop does not run it.
+
+### Step 3 — Define the implementation
+
+Still in `src/skills.metta`, add at the end of the file:
 
 ```metta
 (= (word-count $str)
    (progn (translatePredicate (split_string $str " " "" $parts))
-          (length $parts)))
+          (translatePredicate (length $parts $count))
+          $count))
 ```
 
 If you prefer Python, register a function in a `.py` module and call `(py-call (mymodule.word_count $str))`.
 
-### Step 3 — Test
+### Step 4 — Test
 
-Restart the agent. Ask:
+Restart the agent (`sh run.sh run.metta` from the PeTTa folder, see [Usage](/README.md#usage)). Ask:
 
 ```
 how many words are in "the quick brown fox"?
 ```
 
-The LLM should emit `(word-count "the quick brown fox")` and respond with `4`.
+The LLM should reply with the line `word-count the quick brown fox`, with or without quotes around the text. The parser turns it into `(word-count "the quick brown fox")`. The result `4` comes back in `LAST_SKILL_USE_RESULTS` on the next turn, and the agent answers with `send`.
 
 ## Conventions
 
 - Tool names are lowercase, hyphen-separated.
-- Every argument is a string literal in quotes. Variables are forbidden in LLM-generated tool calls (the loop rejects them in `getContext`).
+- The tool gets everything after its name as one string, because the parser adds the quotes. The prompt tells the LLM not to quote arguments and not to use variables. Nothing checks this, and a `$x` arrives as plain text.
+- A tool that takes a file name and content also needs its name in `TWO_ARG_COMMANDS` in `src/helper.py`. Any other tool gets several arguments only when the LLM puts each one in double quotes.
 - Return a value that is safe to render into the `LAST_SKILL_USE_RESULTS` context — the loop runs the result through `helper.normalize_string`.
 - If your tool may fail, wrap error-producing subcalls in `catch` or let them fall through to the loop's `HandleError`.
 
 ## Verification
 
-- The new tool appears in the prompt (search logs for `word-count`).
+- The new tool appears in the prompt (search the `CHARS_SENT:` log lines for `word-count`).
 - The LLM invokes it without prompting tweaks.
 - The return value shows up in `LAST_SKILL_USE_RESULTS` on the next turn.
 

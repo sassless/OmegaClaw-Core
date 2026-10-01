@@ -11,7 +11,7 @@
 
 | Tool | Purpose |
 |---|---|
-| `(shell "cmd")` | Run a shell command; returns stdout. Apostrophes are not allowed in the argument. |
+| `(shell "cmd")` | Run a shell command; returns stdout and stderr. The tool's line in the prompt asks the LLM to avoid apostrophes. |
 | `(read-file "path")` | Return the file contents as a string. |
 | `(write-file "path" "contents")` | Overwrite the file. |
 | `(append-file "path" "line")` | Append a line (with trailing newline) to the file. |
@@ -24,7 +24,7 @@ See [reference-tools-io.md](./reference-tools-io.md) for exact signatures.
 what version of python is available?
 ```
 
-Expected tool call: `(shell "python3 --version")`.
+Expected tool call: the line `shell python3 --version`, which the parser turns into `(shell "python3 --version")`.
 
 ## 2. Produce a file
 
@@ -44,7 +44,7 @@ The agent should `(append-file "/tmp/session.log" "...")` on each subsequent tur
 
 ## Safety notes
 
-- **Apostrophes in `shell` arguments are rejected** by the Prolog-side `shell` helper. Quote text with double quotes instead, or write it to a file first and operate on the file.
+- **Apostrophes in `shell` arguments** are not checked by the Prolog-side `shell` helper, but the tool's line in the prompt asks the LLM to avoid them. Quote text with double quotes instead, or write it to a file first and operate on the file.
 - **There is no sandbox.** If you expose destructive commands (`rm -rf`, etc.) through the shell you will get what you ask for. Run in Docker and treat the container as ephemeral.
 - File paths are resolved relative to the Omega working directory unless absolute.
 

@@ -176,6 +176,16 @@ required. This ability is provided by the following MeTTa functions:
 - `(remove-prompt-extension $handle)` - removes text from the prompt by the
   handle
 
+`add-skill` puts the line `- $description: $function $arguments` into the
+`SKILLS:` section of the prompt and registers `$function` with the parser in
+`src/helper.py`, so the LLM can call the tool from the next prompt on.
+`$arguments` is a tuple of symbols that name the arguments, `()` for a tool
+without arguments. The parser passes everything after the tool name as one
+string. A tool with several arguments receives them separately only when the
+LLM puts each one in double quotes, which is what argument names such as
+`research_name_in_quotes` in the workflow plugin ask for. `remove-skill` takes
+the line and the name away again and has no effect on built-in tools.
+
 One can look at [source code](/src/skills.metta) for a detailed description.
 Please also look at [workflow plugin](/plugins/workflow/workflow.metta) for
 example usage.
