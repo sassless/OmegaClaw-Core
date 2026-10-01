@@ -235,38 +235,9 @@ Asks about a gibberish string.
 - Checks: the reply contains a negation phrase (`no results`, `not found`, `gibberish`,
   `nonsense`, `no meaning`, `unknown`, and so on).
 
-**13. test_tavily_search_telegram_mock.py**
-
-The live variant exercises the external Tavily uAgent. The mock variant cannot reach it
-deterministically, so the mocked response delivers the answer directly via `(send ...)` and the
-assertion narrows to whether the agent surfaced a real Fetch.ai-specific reply.
-
-- Mock answer: `(send "Fetch.ai (FET) is a decentralized AI blockchain platform powering
-  autonomous economic agents (uAgents). Recent news covers the ASI Alliance roadmap, FET token
-  activity, and integration work with SingularityNET and CUDOS.")`. The `tavily-search` skill
-  itself is not invoked under the mock.
-- Checks: a `(send ...)` exists whose body contains at least one strict Fetch keyword (`fetch.ai`,
-  `fetch ai`, `fet `, `asi alliance`, `humayun`, `uagent`, `decentralized`, `blockchain`, `token`)
-  and none of the delivery-error markers (`delivery failed`, `tavily-search failed`, `currently
-  unavailable`, and so on).
-
-**14. test_technical_analysis_telegram_mock.py**
-
-The live variant exercises the external technical-analysis uAgent. The mock variant cannot reach
-it deterministically, so the mocked response delivers the TA summary directly via `(send ...)` and
-the assertion narrows to whether the agent surfaced TA-style content for the requested ticker.
-
-- Mock answer: `(send "AAPL (Apple) is showing bullish momentum: RSI is rising, MACD crossed
-  above its signal line, and the 50-day SMA is above the 200-day. Composite indicators point to a
-  buy signal with strong trend strength.")`. The `technical-analysis` skill itself is not invoked
-  under the mock.
-- Checks: a `(send ...)` exists whose body mentions the ticker (`aapl` or `apple`) and at least one
-  TA indicator (`rsi`, `macd`, `sma`, `bullish`, `bearish`, `buy signal`, `trend`, `momentum`, and
-  so on) and none of the delivery-error markers.
-
 ### Memory
 
-**15. test_memory_chromadb_telegram_mock.py**
+**13. test_memory_chromadb_telegram_mock.py**
 
 Requests the agent to remember a fact tagged with marker `CI-SMOKE-<run_id>`.
 
@@ -274,7 +245,7 @@ Requests the agent to remember a fact tagged with marker `CI-SMOKE-<run_id>`.
 - Checks: `(remember ...)` was invoked with the marker; vector count in the `embeddings` table of
   `chroma.sqlite3` grew by at least 1.
 
-**16. test_memory_history_telegram_mock.py**
+**14. test_memory_history_telegram_mock.py**
 
 Sends "Acknowledge with one short line that you received marker `<run_id>`." and verifies the
 entry in `history.metta`.
@@ -283,15 +254,15 @@ entry in `history.metta`.
 - Checks: an s-exp record referencing `REQ-<run_id>` appears in history; the agent issued
   `(send ...)`; file mtime and size grew.
 
-**17. test_skill_metta_telegram_mock.py**
+**15. test_skill_metta_telegram_mock.py**
 
 Asks the agent to evaluate a short MeTTa expression and report the result.
 
 - Mock answer: `(metta "(+ 2 2)") (send "The metta skill evaluated (+ 2 2) and returned 4.")`.
 - Checks: `(metta ...)` was invoked; the agent then issued a `(send ...)`. Semantic correctness of
-  the MeTTa expression is not checked, the goal is to exercise the skill.
+  the MeTTa expression is not checked, the goal is to exercise the tool.
 
-**18. test_skill_pin_telegram_mock.py**
+**16. test_skill_pin_telegram_mock.py**
 
 Gives a multi-step task ("restarting servers alpha, beta, gamma, just finished alpha") and expects
 the agent to track progress with `pin`.
@@ -304,7 +275,7 @@ the agent to track progress with `pin`.
 
 ### Working with git
 
-**19. test_git_pull_public_telegram_mock.py**
+**17. test_git_pull_public_telegram_mock.py**
 
 Agent clones a public repository over anonymous HTTPS, no token.
 
@@ -312,7 +283,7 @@ Agent clones a public repository over anonymous HTTPS, no token.
 - Checks: `.git/` appears, HEAD points to a real commit, at least 1 tracked file in HEAD, `origin`
   matches the expected remote URL (normalized, trailing `/` and `.git` ignored).
 
-**20. test_git_local_commit_telegram_mock.py**
+**18. test_git_local_commit_telegram_mock.py**
 
 Agent runs `git init`, `git add`, `git commit` locally inside the container.
 
@@ -321,7 +292,7 @@ Agent runs `git init`, `git add`, `git commit` locally inside the container.
 - Checks: HEAD has at least one commit, commit subject contains the `run_id` (warning, not
   failure), the file is present in the tree.
 
-**21. test_git_push_to_remote_telegram_mock.py**
+**19. test_git_push_to_remote_telegram_mock.py**
 
 Agent clones a remote, creates branch `qa/run-<id>`, adds a file, commits, and pushes.
 
@@ -333,9 +304,9 @@ Agent clones a remote, creates branch `qa/run-<id>`, adds a file, commits, and p
 - Checks: branch present on remote (GitHub API 200), file present on branch, the shell call
   included `git push`, credentials wiped on teardown.
 
-### Multi-skill tests
+### Multi-tool tests
 
-**22. test_run_create_dirs_telegram_mock.py**
+**20. test_run_create_dirs_telegram_mock.py**
 
 Agent writes `mkdirs.sh` and runs it. The script must create `test1`, `test2`, `test3` inside
 `/tmp/test_dirs/`.
@@ -346,7 +317,7 @@ Agent writes `mkdirs.sh` and runs it. The script must create `test1`, `test2`, `
   referencing `mkdirs.sh`; agent invoked `(shell ...)` to run the script. Diagnostics print
   `wf=<count>`, `sh=<count>`, `perms=<...>` to make stalls obvious.
 
-**23. test_memory_episode_telegram_mock.py**
+**21. test_memory_episode_telegram_mock.py**
 
 Two-turn flow: tells the agent that the user's dog Barney lost a baby tooth, waits 5 seconds, then
 asks to recall when this happened.
@@ -358,7 +329,7 @@ asks to recall when this happened.
   Checks (turn 2): `(query ...)` or `(episodes ...)` was invoked; the reply contains at least one
   of `dog` / `tooth` / `lost`; the reply contains the captured seed date in YYYY-MM-DD format.
 
-**24. test_skill_query_telegram_mock.py**
+**22. test_skill_query_telegram_mock.py**
 
 Two-turn flow: plant a unique color (`azure-<run_id>`) via `remember`, wait for embeddings to
 settle, then ask the agent to recall it via `query` (embedding lookup, not timestamp lookup).
@@ -369,7 +340,7 @@ settle, then ask the agent to recall it via `query` (embedding lookup, not times
 - Checks (turn 1): `(remember ...)` carried the secret color. Checks (turn 2): `(query ...)` was
   invoked; the reply mentions the secret color verbatim.
 
-**25. test_skill_episodes_telegram_mock.py**
+**23. test_skill_episodes_telegram_mock.py**
 
 Two-turn flow: send a message tagged with a unique keyword (no `remember`), capture the timestamp,
 then ask the agent to use `episodes` (timestamp lookup, not `query`) to recall what was discussed
@@ -380,11 +351,11 @@ at that earlier time.
 - Checks (turn 1): the turn is recorded in `history.metta` with a timestamp. Checks (turn 2):
   `(episodes ...)` was invoked for the seed timestamp; the reply mentions the original marker.
 
-**26. test_complex_weather_flow_telegram_mock.py**
+**24. test_complex_weather_flow_telegram_mock.py**
 
 Four-step pipeline: search NY weather, write `w.txt` with the forecast, write `p.sh` extracting the
 first Celsius number into `t.txt`, run `p.sh`. Because the mock controls only the LLM dispatch (the
-network-bound search skill is not exercised), the mocked response provides the forecast text
+network-bound `websearch` tool is not exercised), the mocked response provides the forecast text
 directly.
 
 - Mock answer: `(write-file "/tmp/wflow/w.txt" "New York tomorrow: clear, high 22 degrees
