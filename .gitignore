@@ -28,5 +28,5 @@ Autotests/logs/
 logs/*.log
 logs/*.log.*
 
-# generated extension releases
+# generated plugin releases
 /dist/

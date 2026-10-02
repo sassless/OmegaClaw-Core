@@ -1,4 +1,4 @@
-"""Build the versioned ASI extension bundle for the Omega 2 runtime."""
+"""Build the versioned ASI plugin bundle for the Omega 2 runtime."""
 
 from __future__ import annotations
 
@@ -11,8 +11,8 @@ import tarfile
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parents[1]
-RELEASE_ROOT = REPO_ROOT / "extensions" / "omega2"
-PACKAGE_NAME = "asi-omega-extensions"
+RELEASE_ROOT = REPO_ROOT / "plugin-bundle" / "omega2"
+PACKAGE_NAME = "omega-plugins"
 SOURCE_FILES = {
     "config/config.yaml": REPO_ROOT / "deploy" / "omega2" / "config" / "config.yaml",
     "overrides/src/rag.py": RELEASE_ROOT / "overrides" / "src" / "rag.py",

@@ -23,16 +23,16 @@ up on the next prompt without rebuilding the image.
 The deployment also mounts the repository's `memory/prompt.txt` and
 `memory/prompt_ASICloud.txt` read-only over Omega's corresponding prompt files.
 These are the complete team-edited base prompts, including changed and removed
-instructions. Keep edits in the tracked source files and rebuild the extension
+instructions. Keep edits in the tracked source files and rebuild the plugin
 archive for a release; the ASI context file is for additional runtime context.
 
 The deployable plugin release is built separately from the repository root:
 
 ```sh
-python3 scripts/build_omega2_extension_bundle.py
+python3 scripts/build_omega2_plugin_bundle.py
 ```
 
-This produces `dist/asi-omega-extensions-<version>.tar.gz` and its SHA-256
+This produces `dist/omega-plugins-<version>.tar.gz` and its SHA-256
 checksum. The archive packages the files intended for automated VM deployment;
 space-service does not consume it yet. This Compose project mounts repository
 source directly for local testing.
