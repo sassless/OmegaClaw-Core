@@ -119,7 +119,90 @@ def test_outbox_buffers_while_disconnected_and_flushes(wschat):
     assert flushed["client_seq"] == original_client_seq
 
 
+def test_attachment_skill_sends_one_use_id_once(wschat):
+    wschat._running = True
+    wschat._skill_sent_attachments.clear()
+
+    assert wschat.send_attachment_skill("uploaded-id", "Here is the file") is True
+    assert wschat.send_attachment_skill("uploaded-id", "Here is the file") is True
+    assert wschat.send_attachment_skill("uploaded-id", "Different text") is False
+    assert len(wschat._outbox) == 1
+    assert wschat._outbox[0]["attachments"] == [{"id": "uploaded-id"}]
+
+
+def test_attachment_skill_rejects_inactive_channel(wschat):
+    wschat._skill_sent_attachments.clear()
+
+    assert wschat.send_attachment_skill("uploaded-id", "Here is the file") is False
+    assert not wschat._outbox
+
+
 def test_resume_frame_reflects_last_seen(wschat):
     assert wschat._build_resume_frame() == {"type": "resume", "last_seen_seq": None}
     wschat._last_seen_seq = 7
     assert wschat._build_resume_frame() == {"type": "resume", "last_seen_seq": 7}
+
+
+def test_channel_start_reads_token_from_configured_file(wschat, monkeypatch, tmp_path):
+    token_path = tmp_path / "ws-token"
+    token_path.write_text("mounted-secret\n", encoding="utf-8")
+    values = {
+        "WS_URL": "wss://space.example/ws",
+        "wsTokenPath": str(token_path),
+    }
+    started_with = []
+
+    monkeypatch.setattr(
+        wschat,
+        "config_get_by_key",
+        lambda key, default="": values.get(key, default),
+    )
+    monkeypatch.setattr(
+        wschat,
+        "start_websocket",
+        lambda url, token: started_with.append((url, token)),
+    )
+
+    wschat.WSChannel().start()
+
+    assert started_with == [("wss://space.example/ws", "mounted-secret")]
+
+
+def test_channel_greets_once_and_hides_only_startup_version(wschat, monkeypatch):
+    monkeypatch.setattr(
+        wschat,
+        "config_get_by_key",
+        lambda key, default="": True if key == "wschatManageStartupMessages" else default,
+    )
+    monkeypatch.setattr(wschat, "_configured_ws_token", lambda: "")
+    monkeypatch.setattr(wschat, "start_websocket", lambda url, token: object())
+    monkeypatch.setattr(wschat.helper, "omega_version", lambda: "Omega version=test", raising=False)
+
+    channel = wschat.WSChannel()
+    channel.start()
+    assert [item["text"] for item in wschat._outbox] == [
+        "Welcome to Omega Cloud! I'm your Omega agent, delighted to assist you. "
+        "To get started, simply type a message in the chat – I'm all yours!"
+    ]
+
+    channel.send("Omega version=test")
+    channel.send("Hello")
+    channel.send("Omega version=test")
+    assert [item["text"] for item in wschat._outbox] == [
+        "Welcome to Omega Cloud! I'm your Omega agent, delighted to assist you. "
+        "To get started, simply type a message in the chat – I'm all yours!",
+        "Hello",
+        "Omega version=test",
+    ]
+
+
+def test_fork_channel_keeps_its_existing_startup_messages(wschat, monkeypatch):
+    monkeypatch.setattr(wschat, "config_get_by_key", lambda key, default="": default)
+    monkeypatch.setattr(wschat, "_configured_ws_token", lambda: "")
+    monkeypatch.setattr(wschat, "start_websocket", lambda url, token: object())
+
+    channel = wschat.WSChannel()
+    channel.start()
+    channel.send("Existing fork greeting")
+
+    assert [item["text"] for item in wschat._outbox] == ["Existing fork greeting"]

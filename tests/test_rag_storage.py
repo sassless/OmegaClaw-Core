@@ -11,7 +11,7 @@ import pytest
 REPO_ROOT = Path(__file__).parents[1]
 RAG_PATH = REPO_ROOT / "src" / "rag.py"
 POLICY_PATH = REPO_ROOT / "profile"
-CONTEXT_PLUGIN_PATH = REPO_ROOT / "plugins" / "asi_create_context"
+CONTEXT_PLUGIN_PATH = REPO_ROOT / "plugins" / "omega_cloud_context"
 
 
 @pytest.fixture

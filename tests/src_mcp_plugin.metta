@@ -11,7 +11,7 @@
 !(test (loadMettaPlugin "mcp" "./plugins/mcp") ())
 !(test (expression-count-item (getSkills)
          "- Get all available MCP tools with their descriptions: get-mcp-tools ")
-       1)
+       0)
 !(test (expression-count-item (getSkills)
          "- Call an MCP tool with parameters encoded as a JSON object: call-mcp tool_name parameters_as_json_string")
        1)

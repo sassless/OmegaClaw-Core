@@ -1,16 +1,3 @@
-# plugins.yaml lists all plugins available to the agent.  Agent reads this file
-# on start and loads all listed plugins by calling `loadOmegaClawPlugin`
-# function.
-#
-# Plugin can be implemented as a MeTTa module, a single Python file or
-# a Python module. The plugin record has the following fields:
-# - name - required, each plugin should have an unique name
-# - loader - required, `metta` or `python` the runtime which should be used to
-# load the plugin
-# - location - optional field, should be specified if plugin is a single Python
-# file; can include `{REPO}` placeholder to designate the root folder of the
-# OmegaClaw source repository.
-
 - name: irc
   loader: python
   location: "{REPO}/channels"
@@ -32,8 +19,8 @@
   location: "{REPO}/channels"
 
 - name: wschat
-  loader: python
-  location: "{REPO}/channels"
+  loader: metta
+  location: "/opt/asi-omega/plugins/wschat"
 
 - name: openaiapi
   loader: python
@@ -59,10 +46,14 @@
   loader: metta
   location: "{REPO}/plugins/workflow"
 
+- name: openclaw
+  loader: metta
+  location: "{REPO}/plugins/openclaw"
+
 - name: mcp
   loader: metta
-  location: "{REPO}/plugins/mcp"
+  location: "/opt/asi-omega/plugins/mcp"
 
 - name: omega_cloud_context
   loader: metta
-  location: "{REPO}/plugins/omega_cloud_context"
+  location: "/opt/asi-omega/plugins/omega_cloud_context"

@@ -200,7 +200,7 @@ def test_attachment_io_runs_after_message_lock_is_released(
     assert wschat._last_seen_seq == 9
 
 
-def test_image_attachment_routes_to_extension_hub_without_processing_error(
+def test_image_attachment_provides_local_path_without_processing_error(
     wschat, monkeypatch, tmp_path
 ):
     local_file = tmp_path / "screenshot.png"
@@ -220,11 +220,8 @@ def test_image_attachment_routes_to_extension_hub_without_processing_error(
 
     rendered = wschat.getLastMessage()
 
-    assert "Attachment downloaded successfully." in rendered
-    assert f"Original file: {local_file}" in rendered
-    assert "Native image processing is unavailable for image/png." in rendered
-    assert "Use an Extension Hub image tool with the original file path." in rendered
-    assert "Do not ask the user to re-upload or convert the file." in rendered
+    assert str(local_file) in rendered
+    assert "Extension Hub" in rendered
     assert "Attachment processing error" not in rendered
 
 

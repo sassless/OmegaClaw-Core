@@ -1,0 +1,8 @@
+{
+  "mcpServers": {
+    "example": {
+      "transport": "streamable-http",
+      "url": "https://mcp.example.invalid/mcp"
+    }
+  }
+}

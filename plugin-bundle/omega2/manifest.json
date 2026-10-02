@@ -1,0 +1,32 @@
+{
+  "schema_version": 1,
+  "name": "omega-plugins",
+  "version": "0.1.5",
+  "omega": {
+    "image": "singularitynet/omega@sha256:2bf10b939b8280e57f7a8e81cc766df90ed22c455f945eb8de099284f67f3bce",
+    "commit": "6e9f0fbb944b64d15a4ee5b668be874619d9378a"
+  },
+  "plugins": [
+    {
+      "name": "mcp",
+      "loader": "metta",
+      "path": "plugins/mcp"
+    },
+    {
+      "name": "wschat",
+      "loader": "metta",
+      "path": "plugins/wschat"
+    },
+    {
+      "name": "omega_cloud_context",
+      "loader": "metta",
+      "path": "plugins/omega_cloud_context"
+    }
+  ],
+  "plugin_registry": "config/plugins.yaml",
+  "prompt_files": ["memory/prompt.txt", "memory/prompt_ASICloud.txt"],
+  "requirements": "requirements.txt",
+  "overrides": [
+    {"path": "overrides/src/rag.py", "target": "/PeTTa/repos/Omega/src/rag.py"}
+  ]
+}
