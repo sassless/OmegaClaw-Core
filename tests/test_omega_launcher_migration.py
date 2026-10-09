@@ -10,6 +10,7 @@ import pytest
 REPO_ROOT = Path(__file__).resolve().parents[1]
 LAUNCHER = REPO_ROOT / "scripts" / "omega"
 IMAGE = "test/omega:new"
+MIGRATION_LABEL = "omega.memory-migration"
 
 FAKE_DOCKER = r'''#!/usr/bin/env python3
 import os
@@ -24,6 +25,7 @@ root = Path(os.environ["FAKE_DOCKER_ROOT"])
 volumes = root / "volumes"
 containers = root / "containers"
 mounts_dir = root / "mounts"
+labels_dir = root / "labels"
 args = sys.argv[1:]
 
 with open(root / "calls.log", "a", encoding="utf-8") as log:
@@ -64,13 +66,17 @@ if args[:1] == ["rm"]:
         sys.exit(0 if "-f" in args else 1)
     (containers / name).unlink()
     (mounts_dir / name).unlink(missing_ok=True)
+    (labels_dir / name).unlink(missing_ok=True)
     sys.exit(0)
 if args[:1] == ["ps"]:
-    used = [args[index + 1].split("=", 1)[1] for index, option in enumerate(args)
-            if option == "--filter" and args[index + 1].startswith("volume=")]
-    names = [path.name for path in containers.iterdir()]
-    for name in used:
-        names = [user for user in containers_using(name) if user in names]
+    filters = [args[index + 1].split("=", 1) for index, option in enumerate(args) if option == "--filter"]
+    names = sorted(path.name for path in containers.iterdir())
+    for key, value in filters:
+        if key == "volume":
+            names = [user for user in containers_using(value) if user in names]
+        elif key == "label":
+            names = [name for name in names
+                     if (labels_dir / name).exists() and value in (labels_dir / name).read_text().split()]
     print("\n".join(names))
     sys.exit(0)
 if args[:1] == ["inspect"]:
@@ -96,7 +102,7 @@ if args[:1] == ["run"]:
             source, target = args[index + 1].split(":")[:2]
             mounts[target] = source
             index += 2
-        elif option in ("--entrypoint", "--user", "--group-add", "-e", "--name", "--security-opt", "--tmpfs"):
+        elif option in ("--entrypoint", "--user", "--group-add", "-e", "--name", "--security-opt", "--tmpfs", "--label"):
             if option == "--entrypoint":
                 entrypoint = args[index + 1]
             if option == "--name":
@@ -155,6 +161,7 @@ def docker_root(tmp_path):
     (root / "volumes").mkdir(parents=True)
     (root / "containers").mkdir()
     (root / "mounts").mkdir()
+    (root / "labels").mkdir()
     image_memory = root / "image-memory"
     (image_memory / "chroma_db").mkdir(parents=True)
     (image_memory / "history.metta").write_text("")
@@ -312,8 +319,7 @@ def test_without_old_volume_agent_starts_on_image_memory(docker_root):
     assert not (docker_root / "volumes" / "omegaclaw-memory").exists()
 
 
-def test_memory_import_skips_migration(docker_root, tmp_path):
-    _install_omegaclaw(docker_root)
+def _memory_import_arguments(docker_root, tmp_path):
     transfer = tmp_path / "transfer"
     transfer.mkdir()
     transfer.chmod(0o2770)
@@ -328,9 +334,7 @@ def test_memory_import_skips_migration(docker_root, tmp_path):
         encoding="utf-8",
     )
     python3.chmod(0o755)
-
-    result = _launcher(
-        docker_root,
+    return (
         "start",
         "-d",
         IMAGE,
@@ -341,6 +345,12 @@ def test_memory_import_skips_migration(docker_root, tmp_path):
         "--memory-import",
         "memory.tar.gz",
     )
+
+
+def test_memory_import_skips_migration(docker_root, tmp_path):
+    _install_omegaclaw(docker_root)
+
+    result = _launcher(docker_root, *_memory_import_arguments(docker_root, tmp_path))
 
     assert result.returncode == 0, result.stderr
     assert _read(docker_root / "volumes" / "omega-memory" / "history.metta") == ""
@@ -421,9 +431,11 @@ def test_interrupted_copy_is_redone(docker_root):
     assert _started_agent(docker_root)
 
 
-def _container_on_volume(root, name, state, volume_name):
+def _container_on_volume(root, name, state, volume_names, label=None):
     (root / "containers" / name).write_text(state)
-    (root / "mounts" / name).write_text(volume_name)
+    (root / "mounts" / name).write_text(volume_names)
+    if label:
+        (root / "labels" / name).write_text(label)
 
 
 @pytest.mark.parametrize("state", ["exited", "running"])
@@ -454,6 +466,50 @@ def test_interrupted_copy_names_other_containers_on_new_volume(docker_root):
     assert (docker_root / "containers" / "omega-leftover").exists()
     assert not (old / ".migrated-to-omega").exists()
     assert not _started_agent(docker_root)
+
+
+def test_interrupted_copy_removes_leftover_copy_containers(docker_root):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    _container_on_volume(docker_root, "musing_haslett", "running", "omegaclaw-memory omega-memory", label=MIGRATION_LABEL)
+
+    result = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert result.returncode == 0, result.stderr
+    assert _read(new / "history.metta") == "(old history)\n"
+    assert (old / ".migrated-to-omega").exists()
+    assert not (docker_root / "containers" / "musing_haslett").exists()
+    assert _started_agent(docker_root)
+
+
+def test_migration_containers_carry_the_label(docker_root):
+    _install_omegaclaw(docker_root)
+
+    result = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert result.returncode == 0, result.stderr
+    helper_runs = [call for call in _calls(docker_root) if call.startswith("run --rm")]
+    assert len(helper_runs) >= 4
+    assert all(f"--label {MIGRATION_LABEL}" in call for call in helper_runs)
+
+
+def test_memory_import_replaces_an_interrupted_copy(docker_root, tmp_path):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    (new / "history.metta").write_text("(partly copied)\n")
+    _container_on_volume(docker_root, "omega", "exited", "omega-memory")
+
+    result = _launcher(docker_root, *_memory_import_arguments(docker_root, tmp_path))
+
+    assert result.returncode == 0, result.stderr
+    assert _read(new / "history.metta") == ""
+    assert not (old / ".migration-started").exists()
+    assert not (old / ".migrated-to-omega").exists()
+    assert _started_agent(docker_root)
+
+    (new / "history.metta").write_text("(imported and used)\n")
+    again = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert again.returncode == 0, again.stderr
+    assert _read(new / "history.metta") == "(imported and used)\n"
 
 
 def test_run_interrupted_before_the_image_files_is_redone(docker_root):
