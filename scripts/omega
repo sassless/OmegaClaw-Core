@@ -894,15 +894,13 @@ migrate_omegaclaw_memory() {
     local started_marker=".migration-started"
     local stopped_old_container=0
     local old_state
+    local new_state
 
     if ! docker volume inspect "${old_volume}" >/dev/null 2>&1; then
         return 0
     fi
     if ! old_state=$(docker run --rm --label "${migration_label}" --entrypoint sh --volume "${old_volume}:/from:ro" "${image}" \
         -c "if [ -e /from/${marker} ]; then echo migrated; elif [ -e /from/${started_marker} ]; then echo interrupted; fi"); then
-        if [ -n "${memory_import_file}" ]; then
-            return 0
-        fi
         echo "Could not read the migration markers in ${old_volume}" >&2
         return 1
     fi
@@ -923,6 +921,20 @@ migrate_omegaclaw_memory() {
             return 0
             ;;
         interrupted)
+            if docker volume inspect "${new_volume}" >/dev/null 2>&1; then
+                if ! new_state=$(docker run --rm --label "${migration_label}" --entrypoint sh \
+                    --volume "${old_volume}:/from:ro" --volume "${new_volume}:/to:ro" "${image}" \
+                    -c 'if [ -e /to/history.metta ]; then n=$(wc -c < /to/history.metta); if [ ! -e /from/history.metta ] || [ "$n" -gt "$(wc -c < /from/history.metta)" ] || ! head -c "$n" /from/history.metta | cmp -s - /to/history.metta; then echo kept; fi; fi'); then
+                    echo "Could not compare ${new_volume} with ${old_volume}" >&2
+                    return 1
+                fi
+                if [ "${new_state}" = "kept" ]; then
+                    echo "${new_volume} holds memory that is not a partial copy of ${old_volume}, for example an imported archive, so it was left as it was" >&2
+                    echo "To keep it, clear the marker: docker run --rm --entrypoint rm --volume ${old_volume}:/from ${image} /from/${started_marker}" >&2
+                    echo "To copy ${old_volume} again instead, remove it: docker rm -f ${new_container}; docker volume rm ${new_volume}" >&2
+                    return 1
+                fi
+            fi
             echo "The last copy from ${old_volume} did not finish, copying again"
             remove_partly_copied_memory "${new_volume}" "${new_container}" "${migration_label}" || return 1
             ;;
