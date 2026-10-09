@@ -598,3 +598,51 @@ def test_start_stops_when_markers_cannot_be_read(docker_root):
     assert result.returncode != 0
     assert not _started_agent(docker_root)
     assert _snapshot(new) == before
+
+
+def test_memory_import_stops_when_markers_cannot_be_read(docker_root, tmp_path):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    (new / "history.metta").write_text("(partly copied)\n")
+    before = _snapshot(new)
+
+    result = _launcher(docker_root, *_memory_import_arguments(docker_root, tmp_path), fail_marker_check=True)
+
+    assert result.returncode != 0
+    assert "Could not read the migration markers" in result.stderr
+    assert (old / ".migration-started").exists()
+    assert _snapshot(new) == before
+    assert not _started_agent(docker_root)
+
+
+@pytest.mark.parametrize("history", ["(old hi", None])
+def test_interrupted_copy_with_partly_copied_history_is_redone(docker_root, history):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    if history is None:
+        (new / "history.metta").unlink()
+    else:
+        (new / "history.metta").write_text(history)
+
+    result = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert result.returncode == 0, result.stderr
+    assert _read(new / "history.metta") == "(old history)\n"
+    assert (old / ".migrated-to-omega").exists()
+    assert _started_agent(docker_root)
+
+
+@pytest.mark.parametrize("history", ["(imported and used)\n", "(old history)\n(used after import)\n"])
+def test_interrupted_copy_keeps_memory_that_is_not_a_partial_copy(docker_root, history):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    (new / "history.metta").write_text(history)
+    _container_on_volume(docker_root, "omega", "exited", "omega-memory")
+    before = _snapshot(new)
+
+    result = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert result.returncode != 0
+    assert "docker volume rm omega-memory" in result.stderr
+    assert ".migration-started" in result.stderr
+    assert _snapshot(new) == before
+    assert (old / ".migration-started").exists()
+    assert _container_state(docker_root, "omega") == "exited"
+    assert not _started_agent(docker_root)
