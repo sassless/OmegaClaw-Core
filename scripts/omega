@@ -854,11 +854,13 @@ migrate_omegaclaw_memory() {
     local old_container="omegaclaw"
     local old_volume="omegaclaw-memory"
     local new_volume="omega-memory"
+    local new_container="omega"
     local memory_path="/PeTTa/repos/Omega/memory"
     local marker=".migrated-to-omega"
     local started_marker=".migration-started"
     local stopped_old_container=0
     local old_state
+    local holders
 
     if [ -n "${memory_import_file}" ] \
         || ! docker volume inspect "${old_volume}" >/dev/null 2>&1; then
@@ -875,10 +877,18 @@ migrate_omegaclaw_memory() {
             ;;
         interrupted)
             echo "The last copy from ${old_volume} did not finish, copying again"
-            if docker volume inspect "${new_volume}" >/dev/null 2>&1 \
-                && ! docker volume rm "${new_volume}" >/dev/null; then
-                echo "Could not remove the partly copied volume ${new_volume}" >&2
-                return 1
+            if docker volume inspect "${new_volume}" >/dev/null 2>&1; then
+                docker rm -f "${new_container}" >/dev/null 2>&1 || true
+                if ! docker volume rm "${new_volume}" >/dev/null; then
+                    holders=$(docker ps -a --filter "volume=${new_volume}" --format '{{.Names}}' 2>/dev/null | tr '\n' ' ')
+                    holders="${holders% }"
+                    if [ -n "${holders}" ]; then
+                        echo "Could not remove the partly copied volume ${new_volume}, it is used by containers: ${holders}. Remove them with 'docker rm -f ${holders}' and start again" >&2
+                    else
+                        echo "Could not remove the partly copied volume ${new_volume}" >&2
+                    fi
+                    return 1
+                fi
             fi
             ;;
         *)

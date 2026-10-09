@@ -61,7 +61,7 @@ if args[:1] == ["rm"]:
     name = args[-1]
     if not (containers / name).exists():
         print(f"Error response from daemon: No such container: {name}", file=sys.stderr)
-        sys.exit(1)
+        sys.exit(0 if "-f" in args else 1)
     (containers / name).unlink()
     (mounts_dir / name).unlink(missing_ok=True)
     sys.exit(0)
