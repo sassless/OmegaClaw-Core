@@ -861,7 +861,7 @@ remove_partly_copied_memory() {
         return 0
     fi
     docker rm -f "${container}" >/dev/null 2>&1 || true
-    for leftover in $(docker ps -aq --filter "label=${label}" 2>/dev/null); do
+    for leftover in $(docker ps -aq --filter "label=${label}" --filter "volume=${volume}" 2>/dev/null); do
         docker rm -f "${leftover}" >/dev/null 2>&1 || true
     done
     if docker volume rm "${volume}" >/dev/null; then
