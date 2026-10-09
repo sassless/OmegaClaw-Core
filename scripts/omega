@@ -855,26 +855,32 @@ remove_partly_copied_memory() {
     local container="$2"
     local label="$3"
     local leftover
-    local holders
+    local holder
+    local holders=""
 
     if ! docker volume inspect "${volume}" >/dev/null 2>&1; then
         return 0
     fi
-    docker rm -f "${container}" >/dev/null 2>&1 || true
     for leftover in $(docker ps -aq --filter "label=${label}" --filter "volume=${volume}" 2>/dev/null); do
         docker rm -f "${leftover}" >/dev/null 2>&1 || true
     done
-    if docker volume rm "${volume}" >/dev/null; then
-        return 0
-    fi
-    holders=$(docker ps -a --filter "volume=${volume}" --format '{{.Names}}' 2>/dev/null | tr '\n' ' ')
-    holders="${holders% }"
+    for holder in $(docker ps -a --filter "volume=${volume}" --format '{{.Names}}' 2>/dev/null); do
+        if [ "${holder}" != "${container}" ]; then
+            holders="${holders:+${holders} }${holder}"
+        fi
+    done
     if [ -n "${holders}" ]; then
         echo "Could not remove the partly copied volume ${volume}, it is used by containers: ${holders}. Remove them with 'docker rm -f ${holders}' and start again" >&2
-    else
-        echo "Could not remove the partly copied volume ${volume}" >&2
+        return 1
     fi
-    return 1
+    if docker container inspect "${container}" >/dev/null 2>&1 \
+        && docker rm -f "${container}" >/dev/null; then
+        echo "Removed container ${container}, it used the partly copied volume ${volume}"
+    fi
+    if ! docker volume rm "${volume}" >/dev/null; then
+        echo "Could not remove the partly copied volume ${volume}" >&2
+        return 1
+    fi
 }
 
 migrate_omegaclaw_memory() {
