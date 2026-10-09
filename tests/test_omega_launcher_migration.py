@@ -79,6 +79,8 @@ if args[:1] == ["ps"]:
                      if (labels_dir / name).exists() and value in (labels_dir / name).read_text().split()]
     print("\n".join(names))
     sys.exit(0)
+if args[:2] == ["container", "inspect"]:
+    sys.exit(0 if (containers / args[-1]).exists() else 1)
 if args[:1] == ["inspect"]:
     state = containers / args[-1]
     if not state.exists():
@@ -447,6 +449,7 @@ def test_interrupted_copy_is_redone_while_omega_container_holds_new_volume(docke
 
     assert result.returncode == 0, result.stderr
     assert "volume is in use" not in result.stderr
+    assert "Removed container omega, it used the partly copied volume omega-memory" in result.stdout
     assert _read(new / "history.metta") == "(old history)\n"
     assert _read(new / "chroma_db" / "chroma.sqlite3") == "old long-term memory"
     assert (old / ".migrated-to-omega").exists()
@@ -465,6 +468,21 @@ def test_interrupted_copy_names_other_containers_on_new_volume(docker_root):
     assert _snapshot(new) == before
     assert (docker_root / "containers" / "omega-leftover").exists()
     assert not (old / ".migrated-to-omega").exists()
+    assert not _started_agent(docker_root)
+
+
+def test_interrupted_copy_keeps_omega_while_another_container_holds_the_volume(docker_root):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    _container_on_volume(docker_root, "omega", "running", "omega-memory")
+    _container_on_volume(docker_root, "omega-leftover", "exited", "omega-memory")
+    before = _snapshot(new)
+
+    result = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert result.returncode != 0
+    assert "it is used by containers: omega-leftover." in result.stderr
+    assert _container_state(docker_root, "omega") == "running"
+    assert _snapshot(new) == before
     assert not _started_agent(docker_root)
 
 
