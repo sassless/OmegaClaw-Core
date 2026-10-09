@@ -23,6 +23,7 @@ MEMORY_PATH = "/PeTTa/repos/Omega/memory"
 root = Path(os.environ["FAKE_DOCKER_ROOT"])
 volumes = root / "volumes"
 containers = root / "containers"
+mounts_dir = root / "mounts"
 args = sys.argv[1:]
 
 with open(root / "calls.log", "a", encoding="utf-8") as log:
@@ -31,6 +32,13 @@ with open(root / "calls.log", "a", encoding="utf-8") as log:
 
 def volume(name):
     return volumes / name
+
+
+def containers_using(name):
+    return sorted(
+        path.name for path in mounts_dir.iterdir()
+        if name in path.read_text().split()
+    )
 
 
 if args[:2] == ["volume", "inspect"]:
@@ -42,7 +50,28 @@ if args[:2] == ["volume", "create"]:
 if args[:2] == ["volume", "rm"]:
     if os.environ.get("FAKE_DOCKER_FAIL_VOLUME_RM") or not volume(args[2]).is_dir():
         sys.exit(1)
+    users = containers_using(args[2])
+    if users:
+        ids = ", ".join(format(abs(hash(user)), "x") for user in users)
+        print(f"Error response from daemon: remove {args[2]}: volume is in use - [{ids}]", file=sys.stderr)
+        sys.exit(1)
     shutil.rmtree(volume(args[2]))
+    sys.exit(0)
+if args[:1] == ["rm"]:
+    name = args[-1]
+    if not (containers / name).exists():
+        print(f"Error response from daemon: No such container: {name}", file=sys.stderr)
+        sys.exit(1)
+    (containers / name).unlink()
+    (mounts_dir / name).unlink(missing_ok=True)
+    sys.exit(0)
+if args[:1] == ["ps"]:
+    used = [args[index + 1].split("=", 1)[1] for index, option in enumerate(args)
+            if option == "--filter" and args[index + 1].startswith("volume=")]
+    names = [path.name for path in containers.iterdir()]
+    for name in used:
+        names = [user for user in containers_using(name) if user in names]
+    print("\n".join(names))
     sys.exit(0)
 if args[:1] == ["inspect"]:
     state = containers / args[-1]
@@ -59,6 +88,7 @@ if args[:1] in (["stop"], ["start"]):
 if args[:1] == ["run"]:
     mounts = {}
     entrypoint = None
+    container_name = None
     index = 1
     while index < len(args):
         option = args[index]
@@ -69,6 +99,8 @@ if args[:1] == ["run"]:
         elif option in ("--entrypoint", "--user", "--group-add", "-e", "--name", "--security-opt", "--tmpfs"):
             if option == "--entrypoint":
                 entrypoint = args[index + 1]
+            if option == "--name":
+                container_name = args[index + 1]
             index += 2
         elif option.startswith("-"):
             index += 1
@@ -86,6 +118,11 @@ if args[:1] == ["run"]:
         volume(source).mkdir(parents=True, exist_ok=True)
         if target == MEMORY_PATH and not any(volume(source).iterdir()):
             shutil.copytree(root / "image-memory", volume(source), dirs_exist_ok=True)
+    if container_name:
+        (containers / container_name).write_text("running")
+        (mounts_dir / container_name).write_text(
+            "\n".join(source for source in mounts.values() if "/" not in source)
+        )
     if entrypoint == "sh" and command[:1] == ["-c"]:
         script = command[1]
         for target in sorted(mounts, key=len, reverse=True):
@@ -117,6 +154,7 @@ def docker_root(tmp_path):
     root = tmp_path / "docker"
     (root / "volumes").mkdir(parents=True)
     (root / "containers").mkdir()
+    (root / "mounts").mkdir()
     image_memory = root / "image-memory"
     (image_memory / "chroma_db").mkdir(parents=True)
     (image_memory / "history.metta").write_text("")
@@ -381,6 +419,41 @@ def test_interrupted_copy_is_redone(docker_root):
     assert _read(new / "prompt.txt") == "omega prompt\n"
     assert (old / ".migrated-to-omega").exists()
     assert _started_agent(docker_root)
+
+
+def _container_on_volume(root, name, state, volume_name):
+    (root / "containers" / name).write_text(state)
+    (root / "mounts" / name).write_text(volume_name)
+
+
+@pytest.mark.parametrize("state", ["exited", "running"])
+def test_interrupted_copy_is_redone_while_omega_container_holds_new_volume(docker_root, state):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    _container_on_volume(docker_root, "omega", state, "omega-memory")
+
+    result = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert result.returncode == 0, result.stderr
+    assert "volume is in use" not in result.stderr
+    assert _read(new / "history.metta") == "(old history)\n"
+    assert _read(new / "chroma_db" / "chroma.sqlite3") == "old long-term memory"
+    assert (old / ".migrated-to-omega").exists()
+    assert _started_agent(docker_root)
+
+
+def test_interrupted_copy_names_other_containers_on_new_volume(docker_root):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    _container_on_volume(docker_root, "omega-leftover", "exited", "omega-memory")
+    before = _snapshot(new)
+
+    result = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert result.returncode != 0
+    assert "omega-leftover" in result.stderr
+    assert _snapshot(new) == before
+    assert (docker_root / "containers" / "omega-leftover").exists()
+    assert not (old / ".migrated-to-omega").exists()
+    assert not _started_agent(docker_root)
 
 
 def test_run_interrupted_before_the_image_files_is_redone(docker_root):
