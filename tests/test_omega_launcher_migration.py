@@ -481,6 +481,17 @@ def test_interrupted_copy_removes_leftover_copy_containers(docker_root):
     assert _started_agent(docker_root)
 
 
+def test_interrupted_copy_keeps_labelled_containers_on_other_volumes(docker_root):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    _container_on_volume(docker_root, "other_copier", "running", "omegaclaw-memory", label=MIGRATION_LABEL)
+
+    result = _launcher(docker_root, "start", "-d", IMAGE)
+
+    assert result.returncode == 0, result.stderr
+    assert _read(new / "history.metta") == "(old history)\n"
+    assert (docker_root / "containers" / "other_copier").exists()
+
+
 def test_migration_containers_carry_the_label(docker_root):
     _install_omegaclaw(docker_root)
 
@@ -510,6 +521,18 @@ def test_memory_import_replaces_an_interrupted_copy(docker_root, tmp_path):
 
     assert again.returncode == 0, again.stderr
     assert _read(new / "history.metta") == "(imported and used)\n"
+
+
+def test_memory_import_keeps_the_interrupted_state_when_the_volume_cannot_be_removed(docker_root, tmp_path):
+    old, new = _interrupted_migration(docker_root, image_files=True)
+    (new / "history.metta").write_text("(partly copied)\n")
+
+    result = _launcher(docker_root, *_memory_import_arguments(docker_root, tmp_path), fail_volume_rm=True)
+
+    assert result.returncode != 0
+    assert (old / ".migration-started").exists()
+    assert _read(new / "history.metta") == "(partly copied)\n"
+    assert not _started_agent(docker_root)
 
 
 def test_run_interrupted_before_the_image_files_is_redone(docker_root):
